@@ -21,8 +21,9 @@ Flags.DEFINE_string('tmp_ext_dir', "/mnt/069A453E9A452B8D/Ram/slomo_data/tmp/",
 Flags.DEFINE_integer('batch_size', 2, 'Batch size of the input batch')
 Flags.DEFINE_integer('in_between_frames', 1, 'The frames to predict in between. Currently Allowed 1|3|7 (as per paper)')
 Flags.DEFINE_boolean("delete_tmp_folder", False, 'Whether to delete extracted frames folder')
-Flags.DEFINE_integer('queue_capacity', 16, 'The capacity of the image queue (suggest large to ensure'
+Flags.DEFINE_integer('queue_capacity', 5, 'The capacity of the image queue (suggest large to ensure'
                                                    'enough random shuffle')
+Flags.DEFINE_integer('queue_thread', 2, 'The threads of the queue (More threads can speedup the training process.')
 Flags.DEFINE_integer('resize_width', 320, 'The width of the training image')
 Flags.DEFINE_integer('resize_height', 240, 'The width of the training image')
 
