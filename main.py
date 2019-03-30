@@ -12,18 +12,22 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 Flags = tf.app.flags
 
 # DataLoader Parameters
-Flags.DEFINE_string('video_dir',
+Flags.DEFINE_string('train_video_dir',
                     '/mnt/069A453E9A452B8D/Ram/slomo_data/DeepVideoDeblurring_Dataset_Original_High_FPS_Videos/'
                     'original_high_fps_videos',
                     'Video data folder')
-Flags.DEFINE_string('tmp_ext_dir', "/mnt/069A453E9A452B8D/Ram/slomo_data/tmp/",
+Flags.DEFINE_string('val_video_dir', "/mnt/069A453E9A452B8D/Ram/slomo_data/tmp/",
                     'The directory to extract videos temporarily')
+Flags.DEFINE_string('tfrecord_train_dir', "/mnt/069A453E9A452B8D/Ram/slomo_data/tfrecords/train",
+                    'The directory to extract training tfrecords')
+Flags.DEFINE_string('tfrecord_val_dir', "/mnt/069A453E9A452B8D/Ram/slomo_data/tfrecords/val",
+                    'The directory to extract validation tfrecords, should be different from tf record train dir')
 Flags.DEFINE_integer('batch_size', 2, 'Batch size of the input batch')
 Flags.DEFINE_integer('in_between_frames', 1, 'The frames to predict in between. Currently Allowed 1|3|7 (as per paper)')
 Flags.DEFINE_boolean("delete_tmp_folder", False, 'Whether to delete extracted frames folder')
 Flags.DEFINE_integer('queue_capacity', 5, 'The capacity of the image queue (suggest large to ensure'
                                                    'enough random shuffle')
-Flags.DEFINE_integer('queue_thread', 2, 'The threads of the queue (More threads can speedup the training process.')
+Flags.DEFINE_integer('tfrecord_threads', 6, 'The threads of the queue (More threads can speedup the training process.')
 Flags.DEFINE_integer('resize_width', 320, 'The width of the training image')
 Flags.DEFINE_integer('resize_height', 240, 'The width of the training image')
 
