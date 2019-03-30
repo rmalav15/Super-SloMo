@@ -95,32 +95,45 @@ class DataLoader:
         image_paths_lists = [[os.path.join(path, imageName) for imageName in os.listdir(path)] for path in
                              self.image_dirs]
         image_paths_lists = pad_function(image_paths_lists)
-        #print(image_paths_lists)
+        # print(image_paths_lists)
         # TODO: add backward images also.
         # image_paths_lists_deep_copy_list = [random.sample(image_paths_lists, len(image_paths_lists)) for _ in
         #                                     range(self.batch_size)]
-        image_paths_lists_deep_copy_list = [image_paths_lists.copy() for _ in  range(self.batch_size)]
+        #image_paths_lists_deep_copy_list = [image_paths_lists.copy() for _ in range(self.batch_size)]
 
         with tf.variable_scope('data_loader'):
             # This  makes shallow copy
             # images_paths_list_tensor = tf.convert_to_tensor(image_paths_lists, dtype=tf.string)
             # images_paths_list_tensor_list = [tf.random.shuffle(tf.identity(images_paths_list_tensor)) for _ in
             #                                  range(self.batch_size)]
+            tmp = tf.convert_to_tensor(image_paths_lists)
+            images_path_list = tf.train.slice_input_producer([tmp],  shuffle=True, capacity=self.queue_capacity)
 
-            images_paths_list_tensor_list = tf.train.shuffle_batch()
-
+            images_paths_list_tensor_list = tf.train.batch(
+                images_path_list ,
+                batch_size=self.batch_size,
+                # capacity=self.queue_capacity + 4*self.batch_size,
+                # min_after_dequeue=self.queue_capacity,
+                num_threads=self.queue_thread
+            )
+            print("images_paths_list_tensor_list.....", images_paths_list_tensor_list)
+            #return images_paths_list_tensor_list
             # images_paths_list_tensor_list = [tf.convert_to_tensor(shuffled_image_paths_lists, dtype=tf.string) for
             #                                  shuffled_image_paths_lists in image_paths_lists_deep_copy_list]
-            images_path_list = tf.train.slice_input_producer(images_paths_list_tensor_list, shuffle=True,
-                                                             capacity=self.queue_capacity)
-            images_path = tf.train.slice_input_producer(images_path_list, shuffle=False, capacity=self.queue_capacity)
+            # images_path_list = tf.train.slice_input_producer(images_paths_list_tensor_list, shuffle=True,
+            #                                                  capacity=self.queue_capacity)
+            #return tf.unstack(images_paths_list_tensor_list)
+
+            images_path = tf.train.slice_input_producer(tf.unstack(images_paths_list_tensor_list), shuffle=False, capacity=self.queue_capacity)
             batch_images_path = tf.train.batch(images_path,
                                                batch_size=self.in_between_frames + 2,
                                                num_threads=self.queue_thread,
                                                allow_smaller_final_batch=True)
-
+            print("batch_images_path.....", batch_images_path)
+            return batch_images_path
             with tf.name_scope('image_load'):
-                batch_images_list = [tf.map_fn(lambda image_path: tf.read_file(image_path), batch_path) for batch_path in
+                batch_images_list = [tf.map_fn(lambda image_path: tf.read_file(image_path), batch_path) for batch_path
+                                     in
                                      batch_images_path]
                 print(batch_images_list)
                 batch_images_list = [
@@ -136,10 +149,9 @@ class DataLoader:
             #     # TODO: tf.image.resize_images, Require 4-d images with batch, add extra dimension, then remove it
 
             return Data(
-                #inputs=batch_images_list,
+                # inputs=batch_images_list,
                 paths=batch_images_path
             )
-
 
     def delete_tmp_folder(self):
         return None
@@ -157,7 +169,8 @@ def data_main(FLAGS):
         sess.run((var_init, table_init))
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord)
-        print(sess.run(output))
+        while not coord.should_stop():
+            print(sess.run(output))
         # print(sess.run(output))
         print("done................")
         coord.request_stop()
