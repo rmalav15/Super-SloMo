@@ -24,15 +24,15 @@ Flags.DEFINE_string('tfrecord_val_dir', "/mnt/069A453E9A452B8D/Ram/slomo_data/tf
                     'The directory to extract validation tfrecords, should be different from tf record train dir')
 Flags.DEFINE_integer('batch_size', 2, 'Batch size of the input batch')
 Flags.DEFINE_integer('in_between_frames', 1, 'The frames to predict in between. Currently Allowed 1|3|7 (as per paper)')
-Flags.DEFINE_boolean("delete_tmp_folder", False, 'Whether to delete extracted frames folder')
-Flags.DEFINE_integer('queue_capacity', 5, 'The capacity of the image queue (suggest large to ensure'
-                                                   'enough random shuffle')
+Flags.DEFINE_integer('batch_thread', 1, 'The numner of threads to process image queue for generating batches')
+Flags.DEFINE_integer('slim_num_readers', 1, 'The number reader for slim TFreader')
 Flags.DEFINE_integer('tfrecord_threads', 6, 'The threads of the queue (More threads can speedup the training process.')
 Flags.DEFINE_integer('resize_width', 320, 'The width of the training image')
 Flags.DEFINE_integer('resize_height', 240, 'The width of the training image')
 
 # Trainer Parametes
 Flags.DEFINE_string('mode', 'train', 'The mode of the model train, test.')
+Flags.DEFINE_integer('num_epochs', 100000, 'Training/Validation epochs, used in TFreader')
 
 FLAGS = Flags.FLAGS
 
