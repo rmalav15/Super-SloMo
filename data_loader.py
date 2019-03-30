@@ -116,8 +116,8 @@ def convert_frames_to_example(coder, frames, video_name, frame_nos, frames_in_in
         'frames/frameNos': int64_feature(frame_nos),
         'frames/videoName': bytes_feature(video_name.encode('utf8')),
         'frames/frame0': bytes_feature(frames[0]),
-        'image/frameT': bytes_feature(frames[1]),
-        'image/frame1': bytes_feature(frames[2])}))
+        'frames/frameT': bytes_feature(frames[1]),
+        'frames/frame1': bytes_feature(frames[2])}))
     return example
 
 
@@ -273,8 +273,8 @@ class DataLoader:
                 num_readers=self.FLAGS.slim_num_readers,
                 common_queue_capacity=32 * self.FLAGS.batch_size,
                 common_queue_min=8 * self.FLAGS.batch_size,
-                shuffle=True if name == "train" else False,
-                num_epochs=self.FLAGS.num_epochs)
+                shuffle=True if name == "train" else False)
+                #num_epochs=self.FLAGS.num_epochs)
 
         [frame0, frame1, frameT, video_name, frame_nos] = provider.get(
             ['frame0', 'frame1', 'frameT', 'videoName', 'frameNos'])
@@ -313,7 +313,7 @@ class DataLoader:
 # test the data loader
 def data_main(FLAGS):
     data = DataLoader(FLAGS)
-    #data.extract_tfrecords("train")
+    data.extract_tfrecords("train")
     var_init = tf.global_variables_initializer()
     table_init = tf.tables_initializer()
     output = data.getTrainData("train")
