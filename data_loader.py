@@ -326,12 +326,7 @@ def data_main(FLAGS):
         print(sess.run(output))
         coord.request_stop()
         coord.join(threads)
-
-        # coord = tf.train.Coordinator()
-        # threads = tf.train.start_queue_runners(coord=coord)
+        
         # while not coord.should_stop():
         #     print(sess.run(output))
-        # # print(sess.run(output))
-        # print("done................")
-        # coord.request_stop()
-        # coord.join(threads)
+

@@ -5,14 +5,11 @@ from __future__ import print_function
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import keras
-from utils import vgg_19
+from utils import vgg_19, bilinear_sampler
+
 
 # Loss Helper Functions
-def reconstruction_loss(Ipred, Iref, scope="reconstruction_loss"):
-    return None
-
-
-def VGG19_slim(input, type, reuse):
+def VGG19_slim(input, type, reuse=False):
     # Define the feature to extract according to the type of perceptual
     if type == 'VGG54':
         target_layer = 'vgg_19/conv5/conv5_4'
@@ -26,12 +23,50 @@ def VGG19_slim(input, type, reuse):
     return output
 
 
-def perceptual_loss(Ipred, Iref, reuse, layers="VGG54"):
-    return None
+def l1_loss(Ipred, Iref, axis=[3]):
+    return tf.reduce_mean(tf.reduce_sum(tf.abs(Ipred - Iref), axis=axis))  # L1 Norm
 
 
-def back_wrap_bileanr(Image, Flow, scope="back_wrap_bileanr"):
-    return None
+def l2_loss(Ipred, Iref, axis=[3]):
+    return tf.reduce_mean(tf.reduce_sum(tf.square(Ipred - Iref), axis=axis))  # L2 Norm
+
+
+def reconstruction_loss(Ipred, Iref):
+    Ipred = tf.image.convert_image_dtype(Ipred, dtype=tf.uint8)
+    Iref = tf.image.convert_image_dtype(Iref, dtype=tf.uint8)
+
+    Ipred = tf.cast(Ipred, dtype=tf.float32)
+    Iref = tf.cast(Iref, dtype=tf.float32)  # TODO: Check whether required
+
+    # tf.reduce_mean(tf.norm(tf.math.subtract(Ipred, Iref), ord=1, axis=[3]))
+    return l1_loss(Ipred, Iref)
+
+
+def perceptual_loss(Ipred, Iref, layers="VGG54", scope="perceptual_loss"):
+    with tf.variable_scope(scope):
+        # Note name scope is ignored in varibale naming (scope)
+        with tf.name_scope("vgg19_Ipred"):
+            Ipred_features = VGG19_slim(Ipred, layers, reuse=False)
+        with tf.name_scope("vgg19_Iref"):
+            Iref_features = VGG19_slim(Iref, layers, reuse=True)
+
+        return l2_loss(Ipred_features, Iref_features)
+
+
+# Optical flow range must be [-1, 1]
+def wrapping_loss(frame0, frame1, frameT, F01, F10, Fdasht0, Fdasht1):
+    return l1_loss(frame0, bilinear_sampler(frame1, F01)) + \
+           l1_loss(frame1, bilinear_sampler(frame0, F10)) + \
+           l1_loss(frameT, bilinear_sampler(frame0, Fdasht0)) + \
+           l1_loss(frameT, bilinear_sampler(frame1, Fdasht1))
+
+
+def smoothness_loss(F01, F10):
+    deltaF01 = tf.reduce_mean(tf.abs(F01[:, 1:, :, :] - F01[:, :-1, :, :])) + tf.reduce_mean(
+        tf.abs(F01[:, :, 1:, :] - F01[:, :, :-1, :]))
+    deltaF10 = tf.reduce_mean(tf.abs(F10[:, 1:, :, :] - F10[:, :-1, :, :])) + tf.reduce_mean(
+        tf.abs(F10[:, :, 1:, :] - F10[:, :, :-1, :]))
+    return 0.5 * (deltaF01 + deltaF10)
 
 
 # Model Helper Functions
@@ -91,12 +126,7 @@ def decoder_block(input, skip_conn_input, output_channel, conv_kernel=3, up_scal
         return net
 
 
-def UNet(inputs, output_channels, first_kernel=7, second_kernel=5, scope='unet', output_activation=None, reuse=False,
-         FLAGS=None):
-    # Check the flag
-    if FLAGS is None:
-        raise ValueError('No FLAGS is provided for UNet')
-
+def UNet(inputs, output_channels, first_kernel=7, second_kernel=5, scope='unet', output_activation=None, reuse=False):
     with tf.variable_scope(scope, reuse=reuse):
         with tf.variable_scope("encoder"):
             econv1, epool1 = encoder_block(inputs, 32, conv_kernel=first_kernel, scope="en_conv1")
