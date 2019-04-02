@@ -5,7 +5,8 @@ from __future__ import print_function
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import keras
-from utils import vgg_19, bilinear_sampler
+from utils import vgg_19, flow_back_wrap
+import collections
 
 
 # Loss Helper Functions
@@ -55,10 +56,10 @@ def perceptual_loss(Ipred, Iref, layers="VGG54", scope="perceptual_loss"):
 
 # Optical flow range must be [-1, 1]
 def wrapping_loss(frame0, frame1, frameT, F01, F10, Fdasht0, Fdasht1):
-    return l1_loss(frame0, bilinear_sampler(frame1, F01)) + \
-           l1_loss(frame1, bilinear_sampler(frame0, F10)) + \
-           l1_loss(frameT, bilinear_sampler(frame0, Fdasht0)) + \
-           l1_loss(frameT, bilinear_sampler(frame1, Fdasht1))
+    return l1_loss(frame0, flow_back_wrap(frame1, F01)) + \
+           l1_loss(frame1, flow_back_wrap(frame0, F10)) + \
+           l1_loss(frameT, flow_back_wrap(frame0, Fdasht0)) + \
+           l1_loss(frameT, flow_back_wrap(frame1, Fdasht1))
 
 
 def smoothness_loss(F01, F10):
@@ -126,7 +127,8 @@ def decoder_block(input, skip_conn_input, output_channel, conv_kernel=3, up_scal
         return net
 
 
-def UNet(inputs, output_channels, first_kernel=7, second_kernel=5, scope='unet', output_activation=None, reuse=False):
+def UNet(inputs, output_channels, decoder_extra_input=None, first_kernel=7, second_kernel=5, scope='unet',
+         output_activation=None, reuse=False):
     with tf.variable_scope(scope, reuse=reuse):
         with tf.variable_scope("encoder"):
             econv1, epool1 = encoder_block(inputs, 32, conv_kernel=first_kernel, scope="en_conv1")
@@ -139,7 +141,10 @@ def UNet(inputs, output_channels, first_kernel=7, second_kernel=5, scope='unet',
                 econv6 = lrelu(econv6, alpha=0.1)
 
         with tf.variable_scope("decoder"):
-            net = decoder_block(econv6, econv5, 512, scope="dec_conv1")
+            decoder_input = econv6
+            if decoder_extra_input is not None:
+                decoder_input = tf.concat([decoder_input, decoder_extra_input], axis=3)
+            net = decoder_block(decoder_input, econv5, 512, scope="dec_conv1")
             net = decoder_block(net, econv4, 256, scope="dec_conv2")
             net = decoder_block(net, econv3, 128, scope="dec_conv3")
             net = decoder_block(net, econv2, 64, scope="dec_conv4")
@@ -155,3 +160,43 @@ def UNet(inputs, output_channels, first_kernel=7, second_kernel=5, scope='unet',
                 else:
                     raise ValueError("only lrelu|tanh allowed")
             return net, econv6
+
+
+# SloMo vanila model
+def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False, scope="SloMo_model"):
+    # Define the container of the parameter
+    if FLAGS is None:
+        raise ValueError('No FLAGS is provided for generator')
+    Network = collections.namedtuple('Network', 'discrim_real_output, discrim_fake_output, discrim_loss, \
+            discrim_grads_and_vars, adversarial_loss, content_loss, gen_grads_and_vars, gen_output, train, global_step, \
+            learning_rate')
+
+    with tf.variable_scope(scope, reuse=reuse):
+        with tf.variable_scope("flow_computation"):
+            flow_comp_input = tf.concat([frame0, frame1], axis=3)
+            flow_comp_out, flow_comp_enc_out = UNet(flow_comp_input,
+                                                    output_channels=4,  # 2 channel for each flow
+                                                    first_kernel=FLAGS.first_kernel,
+                                                    second_kernel=FLAGS.second_kernel)
+            F01, F10 = flow_comp_out[:, :, :, :2], flow_comp_out[:, :, :, 2:]
+
+        with tf.variable_scope("flow_interpolation"):
+            Fdasht0 = -1 * (1 - 0.5) * 0.5 * F01 + 0.5 * 0.5 * F10
+            Fdasht1 = (1 - 0.5) * (1 - 0.5) * F01 - 0.5 * (1 - 0.5) * F10
+
+            flow_interp_input = tf.concat([frame0, frame1,
+                                           flow_back_wrap(frame1, Fdasht1),
+                                           flow_back_wrap(frame0, Fdasht0),
+                                           Fdasht0, Fdasht1], axis=3)
+            flow_interp_output, _ = UNet(flow_interp_input,
+                                         output_channels=4,  # 2 channel for each flow, Visibilty map not implemnted.
+                                         decoder_extra_input=flow_comp_enc_out,
+                                         first_kernel=3,
+                                         second_kernel=3)
+            deltaF01, deltaF10 = flow_interp_output[:, :, :, :2], flow_interp_output[:, :, :, 2:]
+
+            F0T, F1T = None, None
+            pred_frameT = None
+
+        with tf.variable_scope("slomo_training"):
+            return None

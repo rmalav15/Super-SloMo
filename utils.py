@@ -46,7 +46,7 @@ def vgg_19(inputs, scope='vgg_19', reuse=False):
             return net, end_points
 
 # Refrence: https://github.com/gunshi/appearance-flow-tensorflow/blob/master/bilinear_sampler.py
-def bilinear_sampler(x, v, resize=False, normalize=True, crop=None, out="CONSTANT"):
+def flow_back_wrap(x, v, resize=False, normalize=True, crop=None, out="CONSTANT"):
     """
       Args:
         x - Input tensor [N, H, W, C]
