@@ -99,7 +99,7 @@ def average_pool(input, kernel_size, stride=2, scope="avg_pool"):
 
 def bilinear_upsampling(input, scale=2, scope="bi_upsample"):
     with tf.variable_scope(scope):
-        _, h, w, _ = input.get_shape()
+        _, h, w, _ = tf.shape(input)
         return tf.image.resize_bilinear(input, [scale * h, scale * w])
 
 
@@ -117,14 +117,14 @@ def decoder_block(input, skip_conn_input, output_channel, conv_kernel=3, up_scal
         upsample = bilinear_upsampling(input, scale=up_scale)
 
         block_input = tf.concat([upsample, skip_conn_input], 3)
-        _, _, _, upsample_channels = upsample.get_shape()
-        _, _, _, skip_conn_channels = skip_conn_input.get_shape()
-        _, _, _, total_channels = block_input.get_shape()
-        tf.debugging.assert_equal(upsample_channels + skip_conn_channels, total_channels)  # TODO: Remove This Part
-
-        net = conv2d(block_input, output_channel, kernel_size=conv_kernel)
-        net = lrelu(net, lrelu_alpha)
-        return net
+        _, _, _, upsample_channels = tf.shape(upsample)  # get_shape() - Static, Tf.shape() = dynamic
+        _, _, _, skip_conn_channels = tf.shape(skip_conn_input)
+        _, _, _, total_channels = tf.shape(block_input)
+        with tf.control_dependencies(
+                tf.assert_equal(upsample_channels + skip_conn_channels, total_channels)):  # TODO: Remove This Part
+            net = conv2d(block_input, output_channel, kernel_size=conv_kernel)
+            net = lrelu(net, lrelu_alpha)
+            return net
 
 
 def UNet(inputs, output_channels, decoder_extra_input=None, first_kernel=7, second_kernel=5, scope='unet',
@@ -163,40 +163,90 @@ def UNet(inputs, output_channels, decoder_extra_input=None, first_kernel=7, seco
 
 
 # SloMo vanila model
-def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False, scope="SloMo_model"):
+def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False, scope="awesome_slomo"):
     # Define the container of the parameter
     if FLAGS is None:
         raise ValueError('No FLAGS is provided for generator')
-    Network = collections.namedtuple('Network', 'discrim_real_output, discrim_fake_output, discrim_loss, \
-            discrim_grads_and_vars, adversarial_loss, content_loss, gen_grads_and_vars, gen_output, train, global_step, \
-            learning_rate')
 
+    Network = collections.namedtuple('Network', 'total_loss, reconstruction_loss, perceptual_loss \
+                                                wrapping_loss,  smoothness_loss, slomo_output   \
+                                                grads_and_vars, train, global_step, learning_rate')
     with tf.variable_scope(scope, reuse=reuse):
-        with tf.variable_scope("flow_computation"):
-            flow_comp_input = tf.concat([frame0, frame1], axis=3)
-            flow_comp_out, flow_comp_enc_out = UNet(flow_comp_input,
-                                                    output_channels=4,  # 2 channel for each flow
-                                                    first_kernel=FLAGS.first_kernel,
-                                                    second_kernel=FLAGS.second_kernel)
-            F01, F10 = flow_comp_out[:, :, :, :2], flow_comp_out[:, :, :, 2:]
+        with tf.variable_scope("SloMo_model"):
+            with tf.variable_scope("flow_computation"):
+                flow_comp_input = tf.concat([frame0, frame1], axis=3)
+                flow_comp_out, flow_comp_enc_out = UNet(flow_comp_input,
+                                                        output_channels=4,  # 2 channel for each flow
+                                                        first_kernel=FLAGS.first_kernel,
+                                                        second_kernel=FLAGS.second_kernel)
+                flow_comp_out = tf.tanh(flow_comp_out)
+                F01, F10 = flow_comp_out[:, :, :, :2], flow_comp_out[:, :, :, 2:]
 
-        with tf.variable_scope("flow_interpolation"):
-            Fdasht0 = -1 * (1 - 0.5) * 0.5 * F01 + 0.5 * 0.5 * F10
-            Fdasht1 = (1 - 0.5) * (1 - 0.5) * F01 - 0.5 * (1 - 0.5) * F10
+            with tf.variable_scope("flow_interpolation"):
+                timestamp = 0.5
+                Fdasht0 = -1 * (1 - timestamp) * timestamp * F01 + timestamp * timestamp * F10
+                Fdasht1 = (1 - timestamp) * (1 - timestamp) * F01 - timestamp * (1 - timestamp) * F10
 
-            flow_interp_input = tf.concat([frame0, frame1,
-                                           flow_back_wrap(frame1, Fdasht1),
-                                           flow_back_wrap(frame0, Fdasht0),
-                                           Fdasht0, Fdasht1], axis=3)
-            flow_interp_output, _ = UNet(flow_interp_input,
-                                         output_channels=4,  # 2 channel for each flow, Visibilty map not implemnted.
-                                         decoder_extra_input=flow_comp_enc_out,
-                                         first_kernel=3,
-                                         second_kernel=3)
-            deltaF01, deltaF10 = flow_interp_output[:, :, :, :2], flow_interp_output[:, :, :, 2:]
+                flow_interp_input = tf.concat([frame0, frame1,
+                                               flow_back_wrap(frame1, Fdasht1),
+                                               flow_back_wrap(frame0, Fdasht0),
+                                               Fdasht0, Fdasht1], axis=3)
+                flow_interp_output, _ = UNet(flow_interp_input,
+                                             output_channels=5,  # 2 channels for each flow, 1 visibilty map.
+                                             decoder_extra_input=flow_comp_enc_out,
+                                             first_kernel=3,
+                                             second_kernel=3)
+                deltaFt0, deltaFt1, Vt0 = flow_interp_output[:, :, :, :2], flow_interp_output[:, :, :, 2:4], \
+                                          flow_interp_output[:, :, :, 4:5]
 
-            F0T, F1T = None, None
-            pred_frameT = None
+                deltaFt0 = tf.tanh(deltaFt0)
+                deltaFt1 = tf.tanh(deltaFt1)
+                Vt0 = tf.sigmoid(Vt0)
+                Vt1 = 1 - Vt0
+
+                Ft0, Ft1 = Fdasht0 + deltaFt0, Fdasht1 + deltaFt1
+
+                normalization_factor = 1 / ((1 - timestamp) * Vt0 + timestamp * Vt1 + FLAGS.epsilon)
+                pred_frameT = tf.multiply((1 - timestamp) * Vt0, flow_back_wrap(frame0, Ft0)) + \
+                              tf.multiply(timestamp * Vt1, flow_back_wrap(frame1, Ft1))
+                pred_frameT = tf.multiply(normalization_factor, pred_frameT)
 
         with tf.variable_scope("slomo_training"):
-            return None
+            with tf.variable_scope("losses"):
+                rec_loss = reconstruction_loss(pred_frameT, frameT)
+                percep_loss = perceptual_loss(pred_frameT, frameT, layers=FLAGS.perceptual_mode)
+                wrap_loss = wrapping_loss(frame0, frame1, frameT, F01, F10, Fdasht0, Fdasht1)
+                smooth_loss = smoothness_loss(F01, F10)
+
+                total_loss = FLAGS.reconstruction_scaling * rec_loss + \
+                             FLAGS.perceptual_scaling * percep_loss + \
+                             FLAGS.wrapping_scaling * wrap_loss + \
+                             FLAGS.smoothness_scaling * smooth_loss
+
+            with tf.variable_scope("global_step_and_learning_rate"):
+                global_step = tf.contrib.framework.get_or_create_global_step()
+                learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, FLAGS.decay_step,
+                                                           FLAGS.decay_rate,
+                                                           staircase=FLAGS.stair)
+                incr_global_step = tf.assign(global_step, global_step + 1)
+
+            with tf.variable_scope("optimizer"):
+                with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
+                    tvars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='SloMo_model')
+                    optimizer = tf.train.AdamOptimizer(learning_rate, beta1=FLAGS.beta)
+                    grads_and_vars = optimizer.compute_gradients(total_loss, tvars)
+                    train_op = optimizer.apply_gradients(grads_and_vars)
+
+        # TODO: add more if needed.
+        return Network(
+            total_loss=total_loss,
+            reconstruction_loss = rec_loss,
+            perceptual_loss = percep_loss,
+            wrapping_loss = wrap_loss,
+            smoothness_loss = smooth_loss,
+            slomo_output=pred_frameT,
+            grads_and_vars=grads_and_vars,
+            train=tf.group(total_loss, incr_global_step, train_op),
+            global_step=global_step,
+            learning_rate=learning_rate
+        )
