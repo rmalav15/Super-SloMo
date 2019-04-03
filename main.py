@@ -2,6 +2,7 @@ import tensorflow as tf
 from utils import print_configuration_op
 from data_loader import data_main
 import os
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 # 0 = all messages are logged (default behavior)
@@ -30,14 +31,33 @@ Flags.DEFINE_integer('tfrecord_threads', 6, 'The threads of the queue (More thre
 Flags.DEFINE_integer('resize_width', 320, 'The width of the training image')
 Flags.DEFINE_integer('resize_height', 240, 'The width of the training image')
 
-# Trainer Parametes
+# model configurations
+Flags.DEFINE_integer('first_kernel', 7, 'First conv kernel size in flow computation network')
+Flags.DEFINE_integer('second_kernel', 5, 'First conv kernel size in flow computation network')
+Flags.DEFINE_float('epsilon', 1e-12, 'The eps added to prevent nan')
+Flags.DEFINE_float('reconstruction_scaling', 0.0061, 'The scaling factor for the reconstruction loss')
+Flags.DEFINE_float('perceptual_scaling', 0.0061, 'The scaling factor for the perceptual loss')
+Flags.DEFINE_float('wrapping_scaling', 0.0061, 'The scaling factor for the wrapping loss')
+Flags.DEFINE_float('smoothness_scaling', 0.0061, 'The scaling factor for the smoothness loss')
+
+# Trainer Parameters
 Flags.DEFINE_string('mode', 'train', 'The mode of the model train, test.')
-Flags.DEFINE_integer('num_epochs', 100000, 'Training/Validation epochs, used in TFreader')
+Flags.DEFINE_float('learning_rate', 0.0001, 'The learning rate for the network')
+Flags.DEFINE_integer('decay_step', 500000, 'The steps needed to decay the learning rate')
+Flags.DEFINE_float('decay_rate', 0.1, 'The decay rate of each decay step')
+Flags.DEFINE_boolean('stair', False, 'Whether perform staircase decay. True => decay in discrete interval.')
+Flags.DEFINE_float('beta', 0.9, 'The beta1 parameter for the Adam optimizer')
+Flags.DEFINE_integer('max_epoch', None, 'The max epoch for the training')
+Flags.DEFINE_integer('max_iter', 1000000, 'The max iteration of the training')
+Flags.DEFINE_integer('display_freq', 20, 'The diplay frequency of the training process')
+Flags.DEFINE_integer('summary_freq', 100, 'The frequency of writing summary')
+Flags.DEFINE_integer('save_freq', 10000, 'The frequency of saving images')
 
 FLAGS = Flags.FLAGS
 
 # Print the configuration of the model
 print_configuration_op(FLAGS)
+
 
 def main():
     data_main(FLAGS)
