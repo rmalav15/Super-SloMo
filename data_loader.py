@@ -164,9 +164,18 @@ def convert_TFrecord(name, video_dir, tfrecord_ext_dir, num_thread, width, heigh
     video_list = os.listdir(video_dir)
     video_list = [_ for _ in video_list if check_video_extension(_)]
     video_list = [os.path.join(video_dir, video_name) for video_name in video_list]
-    total_data_count = 0
 
-    assert len(video_list) % num_thread == 0
+    if len(video_list) == 0:
+        raise ValueError(name + ": No videos found of allowed format")
+
+    if len(video_list) < num_thread:
+        num_thread = len(video_list)
+        print('new num of thread for tfrecoder extractor: %d == len(video_list).' % (len(video_list)))
+        sys.stdout.flush()
+    else:
+        assert len(video_list) % num_thread == 0
+
+    total_data_count = 0
     batch_per_thread = int(len(video_list) / num_thread)
     thread_videos_dist = [video_list[i * batch_per_thread: (i + 1) * batch_per_thread] for i in range(num_thread)]
 
@@ -223,10 +232,16 @@ class DataLoader:
                                                                             self.FLAGS.tfrecord_threads,
                                                                             self.FLAGS.resize_width,
                                                                             self.FLAGS.resize_height)
-        if name == "val":
-            pass
+        elif name == "val":
+            self.val_video_list, self.val_data_count = convert_TFrecord(name, self.FLAGS.val_video_dir,
+                                                                        self.FLAGS.tfrecord_val_dir,
+                                                                        self.FLAGS.tfrecord_threads,
+                                                                        self.FLAGS.resize_width,
+                                                                        self.FLAGS.resize_height)
+        else:
+            raise ValueError("only train|val is allowed")
 
-    def getTrainData(self, name):
+    def get_data(self, name):
         Data = collections.namedtuple('Data', 'frame0, frame1, frameT, video_name, frame_nos')
         keys_to_features = {
             'image/height': tf.FixedLenFeature([1], tf.int64),
@@ -265,7 +280,7 @@ class DataLoader:
             reader=tf.TFRecordReader,
             decoder=decoder,
             num_samples=num_samples,
-            items_to_descriptions = None)
+            items_to_descriptions=None)
 
         with tf.name_scope('dataset_data_provider'):
             provider = slim.dataset_data_provider.DatasetDataProvider(
@@ -274,7 +289,7 @@ class DataLoader:
                 common_queue_capacity=32 * self.FLAGS.batch_size,
                 common_queue_min=8 * self.FLAGS.batch_size,
                 shuffle=True if name == "train" else False)
-                #num_epochs=self.FLAGS.num_epochs)
+            # num_epochs=self.FLAGS.num_epochs)
 
         [frame0, frame1, frameT, video_name, frame_nos] = provider.get(
             ['frame0', 'frame1', 'frameT', 'videoName', 'frameNos'])
@@ -290,43 +305,20 @@ class DataLoader:
 
         # TODO: Pre-processing image, labels and bboxes.
 
-
-        output =  tf.train.batch([frame0, frame1, frameT, video_name, frame_nos],
-                              dynamic_pad=False,
-                              batch_size=self.FLAGS.batch_size,
-                              allow_smaller_final_batch=False,
-                              num_threads=self.FLAGS.batch_thread,
-                              capacity=64 * self.FLAGS.batch_size)
+        output = tf.train.batch([frame0, frame1, frameT, video_name, frame_nos],
+                                dynamic_pad=False,
+                                batch_size=self.FLAGS.batch_size,
+                                allow_smaller_final_batch=False,
+                                num_threads=self.FLAGS.batch_thread,
+                                capacity=64 * self.FLAGS.batch_size)
 
         return Data(
-            frame0 = output[0],
-            frame1 = output[1],
-            frameT = output[2],
-            video_name = output[3],
-            frame_nos = output[4]
+            frame0=output[0],
+            frame1=output[1],
+            frameT=output[2],
+            video_name=output[3],
+            frame_nos=output[4]
         )
 
     def delete_tmp_folder(self):
         return None
-
-
-# test the data loader
-def data_main(FLAGS):
-    data = DataLoader(FLAGS)
-    data.extract_tfrecords("train")
-    var_init = tf.global_variables_initializer()
-    table_init = tf.tables_initializer()
-    output = data.getTrainData("train")
-
-    with tf.Session() as sess:
-        print("run................")
-        sess.run((var_init, table_init))
-        coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(coord=coord)
-        print(sess.run(output))
-        coord.request_stop()
-        coord.join(threads)
-        
-        # while not coord.should_stop():
-        #     print(sess.run(output))
-

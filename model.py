@@ -10,7 +10,7 @@ import collections
 
 
 # Loss Helper Functions
-def VGG19_slim(input, type, reuse=False):
+def VGG19_slim(input, type, reuse=tf.AUTO_REUSE):
     # Define the feature to extract according to the type of perceptual
     if type == 'VGG54':
         target_layer = 'vgg_19/conv5/conv5_4'
@@ -43,15 +43,14 @@ def reconstruction_loss(Ipred, Iref):
     return l1_loss(Ipred, Iref)
 
 
-def perceptual_loss(Ipred, Iref, layers="VGG54", scope="perceptual_loss"):
-    with tf.variable_scope(scope):
-        # Note name scope is ignored in varibale naming (scope)
-        with tf.name_scope("vgg19_Ipred"):
-            Ipred_features = VGG19_slim(Ipred, layers, reuse=False)
-        with tf.name_scope("vgg19_Iref"):
-            Iref_features = VGG19_slim(Iref, layers, reuse=True)
+def perceptual_loss(Ipred, Iref, layers="VGG54"):
+    # Note name scope is ignored in varibale naming (scope)
+    with tf.name_scope("vgg19_Ipred"):
+        Ipred_features = VGG19_slim(Ipred, layers, reuse=tf.AUTO_REUSE)
+    with tf.name_scope("vgg19_Iref"):
+        Iref_features = VGG19_slim(Iref, layers, reuse=tf.AUTO_REUSE)
 
-        return l2_loss(Ipred_features, Iref_features)
+    return l2_loss(Ipred_features, Iref_features)
 
 
 # Optical flow range must be [-1, 1]
@@ -163,90 +162,92 @@ def UNet(inputs, output_channels, decoder_extra_input=None, first_kernel=7, seco
 
 
 # SloMo vanila model
-def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False, scope="awesome_slomo"):
+def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False):
     # Define the container of the parameter
     if FLAGS is None:
         raise ValueError('No FLAGS is provided for generator')
 
-    Network = collections.namedtuple('Network', 'total_loss, reconstruction_loss, perceptual_loss \
-                                                wrapping_loss,  smoothness_loss, slomo_output   \
+    Network = collections.namedtuple('Network', 'total_loss, reconstruction_loss, perceptual_loss, \
+                                                wrapping_loss,  smoothness_loss, pred_frameT   \
+                                                Ft0, Ft1, Vt0,\
                                                 grads_and_vars, train, global_step, learning_rate')
-    with tf.variable_scope(scope, reuse=reuse):
-        with tf.variable_scope("SloMo_model"):
-            with tf.variable_scope("flow_computation"):
-                flow_comp_input = tf.concat([frame0, frame1], axis=3)
-                flow_comp_out, flow_comp_enc_out = UNet(flow_comp_input,
-                                                        output_channels=4,  # 2 channel for each flow
-                                                        first_kernel=FLAGS.first_kernel,
-                                                        second_kernel=FLAGS.second_kernel)
-                flow_comp_out = tf.tanh(flow_comp_out)
-                F01, F10 = flow_comp_out[:, :, :, :2], flow_comp_out[:, :, :, 2:]
+    with tf.variable_scope("SloMo_model", reuse=reuse):
+        with tf.variable_scope("flow_computation"):
+            flow_comp_input = tf.concat([frame0, frame1], axis=3)
+            flow_comp_out, flow_comp_enc_out = UNet(flow_comp_input,
+                                                    output_channels=4,  # 2 channel for each flow
+                                                    first_kernel=FLAGS.first_kernel,
+                                                    second_kernel=FLAGS.second_kernel)
+            flow_comp_out = tf.tanh(flow_comp_out)
+            F01, F10 = flow_comp_out[:, :, :, :2], flow_comp_out[:, :, :, 2:]
 
-            with tf.variable_scope("flow_interpolation"):
-                timestamp = 0.5
-                Fdasht0 = -1 * (1 - timestamp) * timestamp * F01 + timestamp * timestamp * F10
-                Fdasht1 = (1 - timestamp) * (1 - timestamp) * F01 - timestamp * (1 - timestamp) * F10
+        with tf.variable_scope("flow_interpolation"):
+            timestamp = 0.5
+            Fdasht0 = -1 * (1 - timestamp) * timestamp * F01 + timestamp * timestamp * F10
+            Fdasht1 = (1 - timestamp) * (1 - timestamp) * F01 - timestamp * (1 - timestamp) * F10
 
-                flow_interp_input = tf.concat([frame0, frame1,
-                                               flow_back_wrap(frame1, Fdasht1),
-                                               flow_back_wrap(frame0, Fdasht0),
-                                               Fdasht0, Fdasht1], axis=3)
-                flow_interp_output, _ = UNet(flow_interp_input,
-                                             output_channels=5,  # 2 channels for each flow, 1 visibilty map.
-                                             decoder_extra_input=flow_comp_enc_out,
-                                             first_kernel=3,
-                                             second_kernel=3)
-                deltaFt0, deltaFt1, Vt0 = flow_interp_output[:, :, :, :2], flow_interp_output[:, :, :, 2:4], \
-                                          flow_interp_output[:, :, :, 4:5]
+            flow_interp_input = tf.concat([frame0, frame1,
+                                           flow_back_wrap(frame1, Fdasht1),
+                                           flow_back_wrap(frame0, Fdasht0),
+                                           Fdasht0, Fdasht1], axis=3)
+            flow_interp_output, _ = UNet(flow_interp_input,
+                                         output_channels=5,  # 2 channels for each flow, 1 visibilty map.
+                                         decoder_extra_input=flow_comp_enc_out,
+                                         first_kernel=3,
+                                         second_kernel=3)
+            # TODO: check Vto is 4 shaped or 3, use expand dimension
+            deltaFt0, deltaFt1, Vt0 = flow_interp_output[:, :, :, :2], flow_interp_output[:, :, :, 2:4], \
+                                      flow_interp_output[:, :, :, 4:5]
 
-                deltaFt0 = tf.tanh(deltaFt0)
-                deltaFt1 = tf.tanh(deltaFt1)
-                Vt0 = tf.sigmoid(Vt0)
-                Vt1 = 1 - Vt0
+            deltaFt0 = tf.tanh(deltaFt0)
+            deltaFt1 = tf.tanh(deltaFt1)
+            Vt0 = tf.sigmoid(Vt0)
+            Vt1 = 1 - Vt0
 
-                Ft0, Ft1 = Fdasht0 + deltaFt0, Fdasht1 + deltaFt1
+            Ft0, Ft1 = Fdasht0 + deltaFt0, Fdasht1 + deltaFt1
 
-                normalization_factor = 1 / ((1 - timestamp) * Vt0 + timestamp * Vt1 + FLAGS.epsilon)
-                pred_frameT = tf.multiply((1 - timestamp) * Vt0, flow_back_wrap(frame0, Ft0)) + \
-                              tf.multiply(timestamp * Vt1, flow_back_wrap(frame1, Ft1))
-                pred_frameT = tf.multiply(normalization_factor, pred_frameT)
+            normalization_factor = 1 / ((1 - timestamp) * Vt0 + timestamp * Vt1 + FLAGS.epsilon)
+            pred_frameT = tf.multiply((1 - timestamp) * Vt0, flow_back_wrap(frame0, Ft0)) + \
+                          tf.multiply(timestamp * Vt1, flow_back_wrap(frame1, Ft1))
+            pred_frameT = tf.multiply(normalization_factor, pred_frameT)
 
-        with tf.variable_scope("slomo_training"):
-            with tf.variable_scope("losses"):
-                rec_loss = reconstruction_loss(pred_frameT, frameT)
-                percep_loss = perceptual_loss(pred_frameT, frameT, layers=FLAGS.perceptual_mode)
-                wrap_loss = wrapping_loss(frame0, frame1, frameT, F01, F10, Fdasht0, Fdasht1)
-                smooth_loss = smoothness_loss(F01, F10)
+    rec_loss = reconstruction_loss(pred_frameT, frameT)
+    percep_loss = perceptual_loss(pred_frameT, frameT, layers=FLAGS.perceptual_mode)
+    wrap_loss = wrapping_loss(frame0, frame1, frameT, F01, F10, Fdasht0, Fdasht1)
+    smooth_loss = smoothness_loss(F01, F10)
 
-                total_loss = FLAGS.reconstruction_scaling * rec_loss + \
-                             FLAGS.perceptual_scaling * percep_loss + \
-                             FLAGS.wrapping_scaling * wrap_loss + \
-                             FLAGS.smoothness_scaling * smooth_loss
+    total_loss = FLAGS.reconstruction_scaling * rec_loss + \
+                 FLAGS.perceptual_scaling * percep_loss + \
+                 FLAGS.wrapping_scaling * wrap_loss + \
+                 FLAGS.smoothness_scaling * smooth_loss
 
-            with tf.variable_scope("global_step_and_learning_rate"):
-                global_step = tf.contrib.framework.get_or_create_global_step()
-                learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, FLAGS.decay_step,
-                                                           FLAGS.decay_rate,
-                                                           staircase=FLAGS.stair)
-                incr_global_step = tf.assign(global_step, global_step + 1)
+    with tf.variable_scope("global_step_and_learning_rate", reuse=reuse):
+        global_step = tf.contrib.framework.get_or_create_global_step()
+        learning_rate = tf.train.exponential_decay(FLAGS.learning_rate, global_step, FLAGS.decay_step,
+                                                   FLAGS.decay_rate,
+                                                   staircase=FLAGS.stair)
+        incr_global_step = tf.assign(global_step, global_step + 1)
 
-            with tf.variable_scope("optimizer"):
-                with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
-                    tvars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='SloMo_model')
-                    optimizer = tf.train.AdamOptimizer(learning_rate, beta1=FLAGS.beta)
-                    grads_and_vars = optimizer.compute_gradients(total_loss, tvars)
-                    train_op = optimizer.apply_gradients(grads_and_vars)
+    with tf.variable_scope("optimizer", reuse=reuse):
+        with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
+            tvars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='SloMo_model')
+            optimizer = tf.train.AdamOptimizer(learning_rate, beta1=FLAGS.beta)
+            grads_and_vars = optimizer.compute_gradients(total_loss, tvars)
+            train_op = optimizer.apply_gradients(grads_and_vars)
 
-        # TODO: add more if needed.
-        return Network(
-            total_loss=total_loss,
-            reconstruction_loss = rec_loss,
-            perceptual_loss = percep_loss,
-            wrapping_loss = wrap_loss,
-            smoothness_loss = smooth_loss,
-            slomo_output=pred_frameT,
-            grads_and_vars=grads_and_vars,
-            train=tf.group(total_loss, incr_global_step, train_op),
-            global_step=global_step,
-            learning_rate=learning_rate
-        )
+    # TODO: add more if needed.
+    return Network(
+        total_loss=total_loss,
+        reconstruction_loss=rec_loss,
+        perceptual_loss=percep_loss,
+        wrapping_loss=wrap_loss,
+        smoothness_loss=smooth_loss,
+        pred_frameT=pred_frameT,
+        Ft0=Ft0,
+        Ft1=Ft1,
+        Vt0=Vt0,
+        grads_and_vars=grads_and_vars,
+        train=tf.group(total_loss, incr_global_step, train_op),
+        global_step=global_step,
+        learning_rate=learning_rate
+    )

@@ -140,3 +140,16 @@ def flow_back_wrap(x, v, resize=False, normalize=True, crop=None, out="CONSTANT"
     output = tf.add_n([w00 * x00, w01 * x01, w10 * x10, w11 * x11])
 
     return output
+
+
+def compute_psnr(ref, target):
+    ref = tf.cast(ref, tf.float32)
+    target = tf.cast(target, tf.float32)
+    diff = target - ref
+    sqr = tf.multiply(diff, diff)
+    err = tf.reduce_sum(sqr)
+    v = tf.shape(diff)[0] * tf.shape(diff)[1] * tf.shape(diff)[2] * tf.shape(diff)[3]
+    mse = err / tf.cast(v, tf.float32)
+    psnr = 10. * (tf.log(255. * 255. / mse) / tf.log(10.))
+
+    return psnr
