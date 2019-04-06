@@ -3,6 +3,8 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import time
+import math
 import tensorflow as tf
 from utils import print_configuration_op, compute_psnr
 from data_loader import DataLoader
@@ -22,7 +24,8 @@ Flags = tf.app.flags
 Flags.DEFINE_string('output_dir', None, 'The output directory of the checkpoint')
 Flags.DEFINE_string('summary_dir', None, 'The dirctory to output the summary')
 Flags.DEFINE_string('mode', 'train', 'The mode of the model train, test.')
-Flags.DEFINE_string('checkpoint', None, 'If provided, the weight will be restored from the provided checkpoint')
+Flags.DEFINE_string('checkpoint', None, 'If provided, the weight will be restored from the provided checkpoint.'
+                                        'Checkpoint folder (Latest checkpoint will be taken)')
 Flags.DEFINE_boolean('pre_trained_model', False,
                      'If set True, the weight will be loaded but the global_step will still '
                      'be 0. If set False, you are going to continue the training. That is, '
@@ -172,12 +175,78 @@ if FLAGS.mode == 'train':
     sv = tf.train.Supervisor(logdir=FLAGS.summary_dir, save_summaries_secs=0, saver=None)
 
     with sv.managed_session(config=config) as sess:
-        None
+        if (FLAGS.checkpoint is not None) and (FLAGS.pre_trained_model is False):
+            print('Loading model from the checkpoint...')
+            checkpoint = tf.train.latest_checkpoint(FLAGS.checkpoint)
+            saver.restore(sess, checkpoint)
 
+        elif (FLAGS.checkpoint is not None) and (FLAGS.pre_trained_model is True):
+            print('Loading weights from the pre-trained model')
+            weight_initializer.restore(sess, FLAGS.checkpoint)
 
+        if FLAGS.vgg_ckpt is not None:
+            vgg_restore.restore(sess, FLAGS.vgg_ckpt)
+        else:
+            raise ValueError("VGG Checkpoint is needed")  # TODO: if not exist write script for downloading
 
+        # Performing the training
+        if FLAGS.max_epoch is None:
+            if FLAGS.max_iter is None:
+                raise ValueError('one of max_epoch or max_iter should be provided')
+            else:
+                max_iter = FLAGS.max_iter
+        else:
+            max_iter = FLAGS.max_epoch * data_train.steps_per_epoch
 
+        print('Optimization starts!!!')
+        start = time.time()
 
+        for step in range(max_iter):
+            fetches = {
+                "train": net_train.train,
+                "global_step": sv.global_step,
+            }
+
+            if ((step + 1) % FLAGS.display_freq) == 0:
+                fetches["total_loss"] = net_train.total_loss
+                fetches["wrapping_loss"] = net_train.wrapping_loss
+                fetches["smoothness_loss"] = net_train.smoothness_loss
+                fetches["perceptual_loss"] = net_train.perceptual_loss
+                fetches["reconstruction_loss"] = net_train.reconstruction_loss
+                fetches["PSNR"] = psnr
+                fetches["learning_rate"] = net_train.learning_rate
+                fetches["global_step"] = net_train.global_step
+
+            if ((step + 1) % FLAGS.summary_freq) == 0:
+                fetches["summary"] = sv.summary_op
+
+            results = sess.run(fetches)
+
+            if ((step + 1) % FLAGS.summary_freq) == 0:
+                print('Recording summary!!')
+                sv.summary_writer.add_summary(results['summary'], results['global_step'])
+
+            if ((step + 1) % FLAGS.display_freq) == 0:
+                train_epoch = math.ceil(results["global_step"] / data_train.steps_per_epoch)
+                train_step = (results["global_step"] - 1) % data_train.steps_per_epoch + 1
+                rate = (step + 1) * FLAGS.batch_size / (time.time() - start)
+                remaining = (max_iter - step) * FLAGS.batch_size / rate
+                print("progress  epoch %d  step %d  image/sec %0.1f  remaining %dm" % (
+                    train_epoch, train_step, rate, remaining / 60))
+                print("global_step", results["global_step"])
+                print("learning_rate", results['learning_rate'])
+                print("PSNR", results["PSNR"])
+                print("total_loss", results["total_loss"])
+                print("wrapping_loss", results["wrapping_loss"])
+                print("smoothness_loss", results["smoothness_loss"])
+                print("perceptual_loss", results["perceptual_loss"])
+                print("reconstruction_loss", results["reconstruction_loss"])
+
+            if ((step + 1) % FLAGS.save_freq) == 0:
+                print('Save the checkpoint')
+                saver.save(sess, os.path.join(FLAGS.output_dir, 'model'), global_step=sv.global_step)
+
+        print('Optimization done!!!!!!!!!!!!')
 
 else:
     raise ValueError("inference|test mode not implemented yet")

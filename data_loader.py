@@ -242,7 +242,7 @@ class DataLoader:
             raise ValueError("only train|val is allowed")
 
     def get_data(self, name):
-        Data = collections.namedtuple('Data', 'frame0, frame1, frameT, video_name, frame_nos')
+        Data = collections.namedtuple('Data', 'frame0, frame1, frameT, video_name, frame_nos, steps_per_epoch')
         keys_to_features = {
             'image/height': tf.FixedLenFeature([1], tf.int64),
             'image/width': tf.FixedLenFeature([1], tf.int64),
@@ -317,7 +317,8 @@ class DataLoader:
             frame1=output[1],
             frameT=output[2],
             video_name=output[3],
-            frame_nos=output[4]
+            frame_nos=output[4],
+            steps_per_epoch=int(num_samples/self.FLAGS.batch_size)
         )
 
     def delete_tmp_folder(self):
