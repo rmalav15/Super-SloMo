@@ -47,20 +47,23 @@ Flags.DEFINE_string('tfrecord_val_dir', "/mnt/069A453E9A452B8D/Ram/slomo_data/tf
                     'The directory to extract validation tfrecords, should be different from tf record train dir')
 Flags.DEFINE_integer('batch_size', 2, 'Batch size of the input batch')
 Flags.DEFINE_integer('in_between_frames', 1, 'The frames to predict in between 1|3|7. Currently Allowed 1')
-Flags.DEFINE_integer('batch_thread', 1, 'The numner of threads to process image queue for generating batches')
-Flags.DEFINE_integer('slim_num_readers', 1, 'The number reader for slim TFreader')
-Flags.DEFINE_integer('tfrecord_threads', 6, 'The threads of the queue (More threads can speedup the training process.')
+Flags.DEFINE_integer('batch_thread', 4, 'The number of threads to process image queue for generating batches')
+Flags.DEFINE_integer('slim_num_readers', 4, 'The number reader for slim TFreader')
+Flags.DEFINE_integer('tfrecord_threads', 6, 'The number of threads for tfrecord extraction.')
 Flags.DEFINE_integer('resize_width', 320, 'The width of the training image')
 Flags.DEFINE_integer('resize_height', 240, 'The width of the training image')
+Flags.DEFINE_integer('train_data_count', None, 'The number of samples in training tfrecords')
+Flags.DEFINE_integer('val_data_count', None, 'The number of samples in training tfrecords')
 
 # model configurations
 Flags.DEFINE_integer('first_kernel', 7, 'First conv kernel size in flow computation network')
 Flags.DEFINE_integer('second_kernel', 5, 'First conv kernel size in flow computation network')
 Flags.DEFINE_float('epsilon', 1e-12, 'The eps added to prevent nan')
-Flags.DEFINE_float('reconstruction_scaling', 0.0061, 'The scaling factor for the reconstruction loss')
-Flags.DEFINE_float('perceptual_scaling', 0.0061, 'The scaling factor for the perceptual loss')
-Flags.DEFINE_float('wrapping_scaling', 0.0061, 'The scaling factor for the wrapping loss')
-Flags.DEFINE_float('smoothness_scaling', 0.0061, 'The scaling factor for the smoothness loss')
+Flags.DEFINE_string('perceptual_mode', 'VGG54', 'The type of feature used in perceptual loss')
+Flags.DEFINE_float('reconstruction_scaling', 0.1, 'The scaling factor for the reconstruction loss')
+Flags.DEFINE_float('perceptual_scaling',  1.0, 'The scaling factor for the perceptual loss')
+Flags.DEFINE_float('wrapping_scaling', 5.0, 'The scaling factor for the wrapping loss')
+Flags.DEFINE_float('smoothness_scaling', 10.0, 'The scaling factor for the smoothness loss')
 
 # Trainer Parameters
 Flags.DEFINE_float('learning_rate', 0.0001, 'The learning rate for the network')
@@ -72,7 +75,7 @@ Flags.DEFINE_integer('max_epoch', None, 'The max epoch for the training')
 Flags.DEFINE_integer('max_iter', 1000000, 'The max iteration of the training')
 Flags.DEFINE_integer('display_freq', 20, 'The diplay frequency of the training process')
 Flags.DEFINE_integer('summary_freq', 100, 'The frequency of writing summary')
-Flags.DEFINE_integer('save_freq', 10000, 'The frequency of saving images')
+Flags.DEFINE_integer('save_freq', 10000, 'The frequency of saving checkpoint')
 
 FLAGS = Flags.FLAGS
 
@@ -91,6 +94,10 @@ if not os.path.exists(FLAGS.output_dir):
 if not os.path.exists(FLAGS.summary_dir):
     os.mkdir(FLAGS.summary_dir)
 
+# Check in between frame constrain
+if FLAGS.in_between_frames is not 1:
+    raise ValueError("only 1 frame prediction is implemented")
+
 # Initialize DataLoader
 data_loader = DataLoader(FLAGS)
 
@@ -99,15 +106,17 @@ if FLAGS.mode == 'train':
 
     # check train tfrecord empty, extract otherwise
     if not os.listdir(FLAGS.tfrecord_train_dir):
-        print("training tfrecord dirctory empty extracting tfrecords")
+        print("training tfrecord directory empty extracting tfrecords")
         data_loader.extract_tfrecords("train")
     else:
         print("WARNING: Skipping train tfrecord extraction")
+        if FLAGS.train_data_count is None:
+            raise ValueError("train_data_count needed if data extraction is not done")
 
     # check val tfrecord empty, extract otherwise
     # TODO: Implement validation part later
     # if not os.listdir(FLAGS.tfrecord_val_dir):
-    #     print("training tfrecord dirctory empty extracting tfrecords")
+    #     print("training tfrecord directory empty extracting tfrecords")
     #     data_loader.extract_tfrecords("val")
     # else:
     #     print("WARNING: Skipping val tfrecord extraction")
@@ -134,7 +143,7 @@ if FLAGS.mode == 'train':
 
     # Add Image summaries
     with tf.name_scope("input_summaries"):
-        tf.summary.scalar("frame0", frame0)
+        tf.summary.image("frame0", frame0)
         tf.summary.image("frame1", frame1)
 
     with tf.name_scope("target_summary"):
@@ -165,6 +174,7 @@ if FLAGS.mode == 'train':
     # Restore VGG
     vgg_var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='vgg_19')
     vgg_restore = tf.train.Saver(vgg_var_list)
+    #print(vgg_var_list)
 
     # Start the session
     config = tf.ConfigProto()
@@ -223,7 +233,7 @@ if FLAGS.mode == 'train':
             results = sess.run(fetches)
 
             if ((step + 1) % FLAGS.summary_freq) == 0:
-                print('Recording summary!!')
+                print('Recording summary !!!!')
                 sv.summary_writer.add_summary(results['summary'], results['global_step'])
 
             if ((step + 1) % FLAGS.display_freq) == 0:
@@ -243,7 +253,7 @@ if FLAGS.mode == 'train':
                 print("reconstruction_loss", results["reconstruction_loss"])
 
             if ((step + 1) % FLAGS.save_freq) == 0:
-                print('Save the checkpoint')
+                print('Save the checkpoint !!!!')
                 saver.save(sess, os.path.join(FLAGS.output_dir, 'model'), global_step=sv.global_step)
 
         print('Optimization done!!!!!!!!!!!!')

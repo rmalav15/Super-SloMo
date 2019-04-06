@@ -98,7 +98,8 @@ def average_pool(input, kernel_size, stride=2, scope="avg_pool"):
 
 def bilinear_upsampling(input, scale=2, scope="bi_upsample"):
     with tf.variable_scope(scope):
-        _, h, w, _ = tf.shape(input)
+        shape = tf.shape(input)
+        h, w = shape[1], shape[2]
         return tf.image.resize_bilinear(input, [scale * h, scale * w])
 
 
@@ -115,15 +116,17 @@ def decoder_block(input, skip_conn_input, output_channel, conv_kernel=3, up_scal
     with tf.variable_scope(scope):
         upsample = bilinear_upsampling(input, scale=up_scale)
 
+        upsample_shape = tf.shape(upsample)  # get_shape() - Static, Tf.shape() = dynamic
+        skip_conn_shape = tf.shape(skip_conn_input)
+
+        # upsample shape can differ from skip conn input (becouse of avg-pool and then bi-upsample in case of odd shape)
+        xdiff, ydiff = skip_conn_shape[1] - upsample_shape[1], skip_conn_shape[2] - upsample_shape[2]
+        upsample = tf.pad(upsample, tf.convert_to_tensor([[0, 0], [0, xdiff], [0, ydiff], [0, 0]], dtype=tf.int32))
         block_input = tf.concat([upsample, skip_conn_input], 3)
-        _, _, _, upsample_channels = tf.shape(upsample)  # get_shape() - Static, Tf.shape() = dynamic
-        _, _, _, skip_conn_channels = tf.shape(skip_conn_input)
-        _, _, _, total_channels = tf.shape(block_input)
-        with tf.control_dependencies(
-                tf.assert_equal(upsample_channels + skip_conn_channels, total_channels)):  # TODO: Remove This Part
-            net = conv2d(block_input, output_channel, kernel_size=conv_kernel)
-            net = lrelu(net, lrelu_alpha)
-            return net
+
+        net = conv2d(block_input, output_channel, kernel_size=conv_kernel)
+        net = lrelu(net, lrelu_alpha)
+        return net
 
 
 def UNet(inputs, output_channels, decoder_extra_input=None, first_kernel=7, second_kernel=5, scope='unet',
@@ -180,6 +183,7 @@ def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False):
                                                     second_kernel=FLAGS.second_kernel)
             flow_comp_out = tf.tanh(flow_comp_out)
             F01, F10 = flow_comp_out[:, :, :, :2], flow_comp_out[:, :, :, 2:]
+            print("Flow Computation Graph Initialized !!!!!! ")
 
         with tf.variable_scope("flow_interpolation"):
             timestamp = 0.5
@@ -210,6 +214,7 @@ def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False):
             pred_frameT = tf.multiply((1 - timestamp) * Vt0, flow_back_wrap(frame0, Ft0)) + \
                           tf.multiply(timestamp * Vt1, flow_back_wrap(frame1, Ft1))
             pred_frameT = tf.multiply(normalization_factor, pred_frameT)
+            print("Flow Interpolation Graph Initialized !!!!!! ")
 
     rec_loss = reconstruction_loss(pred_frameT, frameT)
     percep_loss = perceptual_loss(pred_frameT, frameT, layers=FLAGS.perceptual_mode)

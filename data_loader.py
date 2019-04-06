@@ -211,8 +211,8 @@ class DataLoader:
         self.FLAGS = FLAGS
         self.train_video_list = None
         self.val_video_list = None
-        self.train_data_count = None
-        self.val_data_count = None
+        self.train_data_count = self.FLAGS.train_data_count
+        self.val_data_count = self.FLAGS.val_data_count
 
         # Check the input directory
         if (self.FLAGS.train_video_dir is None) or (
@@ -265,6 +265,7 @@ class DataLoader:
         }
         decoder = slim.tfexample_decoder.TFExampleDecoder(keys_to_features, items_to_handlers)
 
+        num_samples = None
         if name == "train":
             file_pattern = os.path.join(self.FLAGS.tfrecord_train_dir, "train-*")
             print(file_pattern)
@@ -304,6 +305,7 @@ class DataLoader:
         frameT.set_shape([self.FLAGS.resize_height, self.FLAGS.resize_width, 3])
 
         # TODO: Pre-processing image, labels and bboxes.
+        # TODO: Must implement flipping
 
         output = tf.train.batch([frame0, frame1, frameT, video_name, frame_nos],
                                 dynamic_pad=False,

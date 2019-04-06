@@ -1,5 +1,8 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow as tf
-import numpy as np
 import tensorflow.contrib.slim as slim
 
 
@@ -105,8 +108,10 @@ def flow_back_wrap(x, v, resize=False, normalize=True, crop=None, out="CONSTANT"
 
     vy, vx = tf.split(v, 2, axis=3)
     if normalize:
-        vy *= (H / 2)
-        vx *= (W / 2)
+        vy = vy*tf.cast(H, dtype=tf.float32)   # TODO: Check why  vy * (H/2) didnt work
+        vy = vy/2
+        vx = vy*tf.cast(W, dtype=tf.float32)
+        vx = vx/2
 
     n, h, w = _get_grid_array(N, H, W, h, w)  # [N, H, W, 3]
     vx0 = tf.floor(vx)
