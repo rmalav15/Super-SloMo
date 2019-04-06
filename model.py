@@ -4,7 +4,6 @@ from __future__ import print_function
 
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
-import keras
 from utils import vgg_19, flow_back_wrap
 import collections
 
@@ -84,8 +83,8 @@ def conv2d(batch_input, output_channels, kernel_size=3, stride=1, scope="conv", 
                            activation_fn=activation_fn)
 
 
-def lrelu_keras(input, alpha=0.2):
-    return keras.layers.LeakyReLU(alpha=alpha)(input)  # TODO: Pure tensorflow, Keras Not Allowed
+# def lrelu_keras(input, alpha=0.2):
+#     return keras.layers.LeakyReLU(alpha=alpha)(input)  # TODO: Pure tensorflow, Keras Not Allowed
 
 
 def lrelu(input, alpha=0.2):

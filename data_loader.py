@@ -10,10 +10,10 @@ import threading
 import sys
 from datetime import datetime
 
+ALLOWED_VIDEO_EXTENSION = ["MOV", "mov", "mp4", "m4v", "MP4"]
+
 slim = tf.contrib.slim
 lock = threading.Lock()
-
-ALLOWED_VIDEO_EXTENSION = ["MOV"]
 
 
 def int64_feature(value):
@@ -165,6 +165,7 @@ def convert_TFrecord(name, video_dir, tfrecord_ext_dir, num_thread, width, heigh
     video_list = [_ for _ in video_list if check_video_extension(_)]
     video_list = [os.path.join(video_dir, video_name) for video_name in video_list]
 
+    print("INFO: number of videos to process: %d" % len(video_list))
     if len(video_list) == 0:
         raise ValueError(name + ": No videos found of allowed format")
 
@@ -320,7 +321,7 @@ class DataLoader:
             frameT=output[2],
             video_name=output[3],
             frame_nos=output[4],
-            steps_per_epoch=int(num_samples/self.FLAGS.batch_size)
+            steps_per_epoch=int(num_samples / self.FLAGS.batch_size)
         )
 
     def delete_tmp_folder(self):

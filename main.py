@@ -11,7 +11,6 @@ from data_loader import DataLoader
 from model import SloMo_model
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-ALLOWED_VIDEO_EXTENSION = ["MOV"]
 
 # 0 = all messages are logged (default behavior)
 # 1 = INFO messages are not printed
@@ -49,10 +48,10 @@ Flags.DEFINE_integer('batch_size', 2, 'Batch size of the input batch')
 Flags.DEFINE_integer('in_between_frames', 1, 'The frames to predict in between 1|3|7. Currently Allowed 1')
 Flags.DEFINE_integer('batch_thread', 4, 'The number of threads to process image queue for generating batches')
 Flags.DEFINE_integer('slim_num_readers', 4, 'The number reader for slim TFreader')
-Flags.DEFINE_integer('tfrecord_threads', 6, 'The number of threads for tfrecord extraction.')
+Flags.DEFINE_integer('tfrecord_threads', 5, 'The number of threads for tfrecord extraction.')
 Flags.DEFINE_integer('resize_width', 320, 'The width of the training image')
 Flags.DEFINE_integer('resize_height', 240, 'The width of the training image')
-Flags.DEFINE_integer('train_data_count', None, 'The number of samples in training tfrecords')
+Flags.DEFINE_integer('train_data_count', 116241, 'The number of samples in training tfrecords')
 Flags.DEFINE_integer('val_data_count', None, 'The number of samples in training tfrecords')
 
 # model configurations
@@ -61,7 +60,7 @@ Flags.DEFINE_integer('second_kernel', 5, 'First conv kernel size in flow computa
 Flags.DEFINE_float('epsilon', 1e-12, 'The eps added to prevent nan')
 Flags.DEFINE_string('perceptual_mode', 'VGG54', 'The type of feature used in perceptual loss')
 Flags.DEFINE_float('reconstruction_scaling', 0.1, 'The scaling factor for the reconstruction loss')
-Flags.DEFINE_float('perceptual_scaling',  1.0, 'The scaling factor for the perceptual loss')
+Flags.DEFINE_float('perceptual_scaling', 1.0, 'The scaling factor for the perceptual loss')
 Flags.DEFINE_float('wrapping_scaling', 5.0, 'The scaling factor for the wrapping loss')
 Flags.DEFINE_float('smoothness_scaling', 10.0, 'The scaling factor for the smoothness loss')
 
@@ -174,7 +173,7 @@ if FLAGS.mode == 'train':
     # Restore VGG
     vgg_var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='vgg_19')
     vgg_restore = tf.train.Saver(vgg_var_list)
-    #print(vgg_var_list)
+    # print(vgg_var_list)
 
     # Start the session
     config = tf.ConfigProto()
