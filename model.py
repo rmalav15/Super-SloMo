@@ -164,6 +164,60 @@ def UNet(inputs, output_channels, decoder_extra_input=None, first_kernel=7, seco
 
 
 # SloMo vanila model
+def SloMo_model_infer(frame0, frame1, FLAGS, reuse=False, timestamp=0.5):
+    # Define the container of the parameter
+    if FLAGS is None:
+        raise ValueError('No FLAGS is provided for generator')
+
+    Network = collections.namedtuple('Network', 'pred_frameT')
+    with tf.variable_scope("SloMo_model", reuse=reuse):
+        with tf.variable_scope("flow_computation"):
+            flow_comp_input = tf.concat([frame0, frame1], axis=3)
+            flow_comp_out, flow_comp_enc_out = UNet(flow_comp_input,
+                                                    output_channels=4,  # 2 channel for each flow
+                                                    first_kernel=FLAGS.first_kernel,
+                                                    second_kernel=FLAGS.second_kernel)
+            flow_comp_out = lrelu(flow_comp_out)
+            F01, F10 = flow_comp_out[:, :, :, :2], flow_comp_out[:, :, :, 2:]
+            print("Flow Computation Graph Initialized !!!!!! ")
+
+        with tf.variable_scope("flow_interpolation"):
+            Fdasht0 = (-1 * (1 - timestamp) * timestamp * F01) + (timestamp * timestamp * F10)
+            Fdasht1 = ((1 - timestamp) * (1 - timestamp) * F01) - (timestamp * (1 - timestamp) * F10)  # TODO :Remove ()
+
+            flow_interp_input = tf.concat([frame0, frame1,
+                                           flow_back_wrap(frame1, Fdasht1),
+                                           flow_back_wrap(frame0, Fdasht0),
+                                           Fdasht0, Fdasht1], axis=3)
+            flow_interp_output, _ = UNet(flow_interp_input,
+                                         output_channels=5,  # 2 channels for each flow, 1 visibilty map.
+                                         decoder_extra_input=flow_comp_enc_out,
+                                         first_kernel=3,
+                                         second_kernel=3)
+            # TODO: check Vto is 4 shaped or 3, use expand dimension
+            deltaFt0, deltaFt1, Vt0 = flow_interp_output[:, :, :, :2], flow_interp_output[:, :, :, 2:4], \
+                                      flow_interp_output[:, :, :, 4:5]
+
+            deltaFt0 = lrelu(deltaFt0)
+            deltaFt1 = lrelu(deltaFt1)
+            Vt0 = tf.sigmoid(Vt0)
+            Vt0 = tf.tile(Vt0, [1, 1, 1, 3])  # Copy same in all three channels
+            Vt1 = 1 - Vt0
+
+            Ft0, Ft1 = Fdasht0 + deltaFt0, Fdasht1 + deltaFt1
+
+            normalization_factor = 1 / ((1 - timestamp) * Vt0 + timestamp * Vt1 + FLAGS.epsilon)
+            pred_frameT = tf.multiply((1 - timestamp) * Vt0, flow_back_wrap(frame0, Ft0)) + \
+                          tf.multiply(timestamp * Vt1, flow_back_wrap(frame1, Ft1))  # TODO: check flow_back_wrap
+            pred_frameT = tf.multiply(normalization_factor, pred_frameT)
+            print("Flow Interpolation Graph Initialized !!!!!! ")
+
+    return Network(
+        pred_frameT=pred_frameT
+    )
+
+
+# SloMo vanila model
 def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False, timestamp=0.5):
     # Define the container of the parameter
     if FLAGS is None:
