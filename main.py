@@ -61,8 +61,8 @@ Flags.DEFINE_float('epsilon', 1e-12, 'The eps added to prevent nan')
 Flags.DEFINE_string('perceptual_mode', 'VGG54', 'The type of feature used in perceptual loss')
 Flags.DEFINE_float('reconstruction_scaling', 0.1, 'The scaling factor for the reconstruction loss')
 Flags.DEFINE_float('perceptual_scaling', 1.0, 'The scaling factor for the perceptual loss')
-Flags.DEFINE_float('wrapping_scaling', 5.0, 'The scaling factor for the wrapping loss')
-Flags.DEFINE_float('smoothness_scaling', 10.0, 'The scaling factor for the smoothness loss')
+Flags.DEFINE_float('wrapping_scaling', 1.0, 'The scaling factor for the wrapping loss')
+Flags.DEFINE_float('smoothness_scaling', 50.0, 'The scaling factor for the smoothness loss')
 
 # Trainer Parameters
 Flags.DEFINE_float('learning_rate', 0.0001, 'The learning rate for the network')

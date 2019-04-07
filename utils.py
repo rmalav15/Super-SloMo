@@ -48,8 +48,9 @@ def vgg_19(inputs, scope='vgg_19', reuse=False):
 
             return net, end_points
 
-# Refrence: https://github.com/gunshi/appearance-flow-tensorflow/blob/master/bilinear_sampler.py
-def flow_back_wrap(x, v, resize=False, normalize=True, crop=None, out="CONSTANT"):
+
+# Reference: https://github.com/gunshi/appearance-flow-tensorflow/blob/master/bilinear_sampler.py
+def flow_back_wrap(x, v, resize=False, normalize=False, crop=None, out="CONSTANT"):
     """
       Args:
         x - Input tensor [N, H, W, C]
@@ -108,10 +109,10 @@ def flow_back_wrap(x, v, resize=False, normalize=True, crop=None, out="CONSTANT"
 
     vy, vx = tf.split(v, 2, axis=3)
     if normalize:
-        vy = vy*tf.cast(H, dtype=tf.float32)   # TODO: Check why  vy * (H/2) didnt work
-        vy = vy/2
-        vx = vy*tf.cast(W, dtype=tf.float32)
-        vx = vx/2
+        vy = vy * tf.cast(H, dtype=tf.float32)  # TODO: Check why  vy * (H/2) didnt work
+        vy = vy / 2
+        vx = vy * tf.cast(W, dtype=tf.float32)
+        vx = vx / 2
 
     n, h, w = _get_grid_array(N, H, W, h, w)  # [N, H, W, 3]
     vx0 = tf.floor(vx)

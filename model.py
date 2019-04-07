@@ -164,7 +164,7 @@ def UNet(inputs, output_channels, decoder_extra_input=None, first_kernel=7, seco
 
 
 # SloMo vanila model
-def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False):
+def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False, timestamp=0.5):
     # Define the container of the parameter
     if FLAGS is None:
         raise ValueError('No FLAGS is provided for generator')
@@ -180,14 +180,13 @@ def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False):
                                                     output_channels=4,  # 2 channel for each flow
                                                     first_kernel=FLAGS.first_kernel,
                                                     second_kernel=FLAGS.second_kernel)
-            flow_comp_out = tf.tanh(flow_comp_out)
+            flow_comp_out = lrelu(flow_comp_out)
             F01, F10 = flow_comp_out[:, :, :, :2], flow_comp_out[:, :, :, 2:]
             print("Flow Computation Graph Initialized !!!!!! ")
 
         with tf.variable_scope("flow_interpolation"):
-            timestamp = 0.5
-            Fdasht0 = -1 * (1 - timestamp) * timestamp * F01 + timestamp * timestamp * F10
-            Fdasht1 = (1 - timestamp) * (1 - timestamp) * F01 - timestamp * (1 - timestamp) * F10
+            Fdasht0 = (-1 * (1 - timestamp) * timestamp * F01) + (timestamp * timestamp * F10)
+            Fdasht1 = ((1 - timestamp) * (1 - timestamp) * F01) - (timestamp * (1 - timestamp) * F10)  # TODO :Remove ()
 
             flow_interp_input = tf.concat([frame0, frame1,
                                            flow_back_wrap(frame1, Fdasht1),
@@ -202,16 +201,17 @@ def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False):
             deltaFt0, deltaFt1, Vt0 = flow_interp_output[:, :, :, :2], flow_interp_output[:, :, :, 2:4], \
                                       flow_interp_output[:, :, :, 4:5]
 
-            deltaFt0 = tf.tanh(deltaFt0)
-            deltaFt1 = tf.tanh(deltaFt1)
+            deltaFt0 = lrelu(deltaFt0)
+            deltaFt1 = lrelu(deltaFt1)
             Vt0 = tf.sigmoid(Vt0)
+            Vt0 = tf.tile(Vt0, [1, 1, 1, 3])  # Copy same in all three channels
             Vt1 = 1 - Vt0
 
             Ft0, Ft1 = Fdasht0 + deltaFt0, Fdasht1 + deltaFt1
 
             normalization_factor = 1 / ((1 - timestamp) * Vt0 + timestamp * Vt1 + FLAGS.epsilon)
             pred_frameT = tf.multiply((1 - timestamp) * Vt0, flow_back_wrap(frame0, Ft0)) + \
-                          tf.multiply(timestamp * Vt1, flow_back_wrap(frame1, Ft1))
+                          tf.multiply(timestamp * Vt1, flow_back_wrap(frame1, Ft1))  # TODO: check flow_back_wrap
             pred_frameT = tf.multiply(normalization_factor, pred_frameT)
             print("Flow Interpolation Graph Initialized !!!!!! ")
 
