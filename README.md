@@ -14,7 +14,7 @@ The network is trained on [adobe240fps](http://www.cs.ubc.ca/labs/imager/tr/2017
 
 - Python 3.5 (Code can be easily changed to python2.7 by just modifying prints)
 - Tensorflow == 1.12.0 (Should work on lower versions with minor changes)
-- opencv-python (Used for video loading and saving)
+- Opencv-python (Used for video loading and saving)
 
 The code is tested on :- Ubuntu 14.04 LTS with CPU architecture x86_64 + Nvidia Titan X 1070 + cuda9.0.
 
@@ -45,7 +45,7 @@ CUDA_VISIBLE_DEVICES=0 python main.py \
     --train_data_count 116241
 ```
 
-For all available options check main.py
+For all available options, check main.py
 
 If run first time, it will first convert videos to tfrecord in training format. Please note that for next time "train_data_count"  
 needs to be provide, so note the dataset sample count printed while training for first time.
@@ -67,4 +67,4 @@ CUDA_VISIBLE_DEVICES=0 python slomo_video.py \
     --checkpoint /mnt/069A453E9A452B8D/Ram/slomo_data/experiment_lrelu/model-200000
 ```
 
-For all available options check slomo_video.py
+For all available options, check slomo_video.py
