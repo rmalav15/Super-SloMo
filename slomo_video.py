@@ -52,7 +52,7 @@ def video_to_slomo(sess, fetch, frame0_ph, frame1_ph):
     frame_count = int(in_video.get(cv2.CAP_PROP_FRAME_COUNT))
 
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out_video = cv2.VideoWriter(FLAGS.output_video_path, fourcc, fps, (frame_width, frame_height))
+    out_video = cv2.VideoWriter(FLAGS.output_video_path, fourcc, fps*3, (frame_width, frame_height))
 
     frame0 = None
     frame1 = None
@@ -74,8 +74,9 @@ def video_to_slomo(sess, fetch, frame0_ph, frame1_ph):
                                              frame1_ph: np.expand_dims(frame1, axis=0)})
         results = [(255 * r.pred_frameT).astype(np.uint8) for r in results]
         out_video.write((255 * frame0).astype(np.uint8))
-        for f in results:
-            out_video.write(f)
+        for i, f in enumerate(results):
+            #cv2.imwrite("/mnt/069A453E9A452B8D/Ram/slomo_data/tmp/"+str(count) + "_"+str(i)+".png", f[0])
+            out_video.write(f[0])
         frame0 = frame
     pbar.close()
     if frame1 is not None:
