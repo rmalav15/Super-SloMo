@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This project is a tensorflow Implementation of impressive work 
+This project is a tensorflow implementation of the impressive work 
 "Super SloMo: High Quality Estimation of Multiple Intermediate Frames for Video Interpolation". [[Paper]](https://arxiv.org/abs/1712.00080) [[Project]](https://people.cs.umass.edu/~hzjiang/projects/superslomo/)
 
 The network is trained on [adobe240fps](http://www.cs.ubc.ca/labs/imager/tr/2017/DeepVideoDeblurring/DeepVideoDeblurring_Dataset_Original_High_FPS_Videos.zip) dataset
