@@ -8,7 +8,7 @@ This project is a tensorflow Implementation of impressive work
 The network is trained on [adobe240fps](http://www.cs.ubc.ca/labs/imager/tr/2017/DeepVideoDeblurring/DeepVideoDeblurring_Dataset_Original_High_FPS_Videos.zip) dataset
 (30 videos out of 33 are used for training). 
 
-<img src='./videos/bike.gif'> <img src='./videos/bike_slomo.gif'>
+![](./videos/bike.gif) ![](./videos/bike_slomo.gif)
 
 ## Dependecy
 
@@ -16,7 +16,7 @@ The network is trained on [adobe240fps](http://www.cs.ubc.ca/labs/imager/tr/2017
 - Tensorflow == 1.12.0 (Should work on lower versions with minor changes)
 - opencv-python (Used for video loading and saving)
 
-The code is tested on :- Ubuntu 14.04 LTS with CPU architecture x86_64 + Nvidia Titan X 1070 + cuda9.0
+The code is tested on :- Ubuntu 14.04 LTS with CPU architecture x86_64 + Nvidia Titan X 1070 + cuda9.0.
 
 ## Getting Started
 
@@ -48,9 +48,9 @@ CUDA_VISIBLE_DEVICES=0 python main.py \
 For all available options check main.py
 
 If run first time, it will first convert videos to tfrecord in training format. Please note that for next time "train_data_count"  
-need to be provide, so note the dataset sample count printed while training for first time.
+needs to be provide, so note the dataset sample count printed while training for first time.
 
-To observe the training losses, learning rate, graph and predicted image, use tensorboard
+To observe the training losses, learning rate, graph and predicted images, use tensorboard
 ```bash
 tensorboard --logdir [summary_dir]
 ```
