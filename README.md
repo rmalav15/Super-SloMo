@@ -10,7 +10,7 @@ The network is trained on [adobe240fps](http://www.cs.ubc.ca/labs/imager/tr/2017
 
 <img src='./videos/bike.gif' width="400"> <img src='./videos/bike_slomo.gif' width="400">
 
-## Dependecy
+## Dependencies
 
 - Python 3.5 (Code can be easily changed to python2.7 by just modifying prints)
 - Tensorflow == 1.12.0 (Should work on lower versions with minor changes)
