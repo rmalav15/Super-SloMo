@@ -45,19 +45,19 @@ CUDA_VISIBLE_DEVICES=0 python main.py \
     --train_data_count 116241
 ```
 
-For all available options, check main.py
+For all available options, check main.py.
 
 If run first time, it will first convert videos to tfrecord in training format. Please note that for next time "train_data_count"  
 needs to be provide, so note the dataset sample count printed while training for first time.
 
-To observe the training losses, learning rate, graph and predicted images, use tensorboard
+To observe the training losses, learning rate, graph and predicted images, use tensorboard:
 ```bash
 tensorboard --logdir [summary_dir]
 ```
 
 ### Inference
 
-To run inference, edit and run slomo_video.sh
+To run inference, edit and run slomo_video.sh:
 ```bash
 #!/usr/bin/env bash
 CUDA_VISIBLE_DEVICES=0 python slomo_video.py \
@@ -67,4 +67,4 @@ CUDA_VISIBLE_DEVICES=0 python slomo_video.py \
     --checkpoint /mnt/069A453E9A452B8D/Ram/slomo_data/experiment_lrelu/model-200000
 ```
 
-For all available options, check slomo_video.py
+For all available options, check slomo_video.py.
