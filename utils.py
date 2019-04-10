@@ -109,7 +109,7 @@ def flow_back_wrap(x, v, resize=False, normalize=False, crop=None, out="CONSTANT
 
     vy, vx = tf.split(v, 2, axis=3)
     if normalize:
-        vy = vy * tf.cast(H, dtype=tf.float32)  # TODO: Check why  vy * (H/2) didnt work
+        vy = vy * tf.cast(H, dtype=tf.float32)  # TODO: Check why  vy * (H/2) didn't work
         vy = vy / 2
         vx = vy * tf.cast(W, dtype=tf.float32)
         vx = vx / 2

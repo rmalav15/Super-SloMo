@@ -27,16 +27,6 @@ Flags.DEFINE_string('checkpoint', None, 'Slomo model path')
 Flags.DEFINE_integer('first_kernel', 7, 'First conv kernel size in flow computation network')
 Flags.DEFINE_integer('second_kernel', 5, 'First conv kernel size in flow computation network')
 Flags.DEFINE_float('epsilon', 1e-12, 'The eps added to prevent nan')
-Flags.DEFINE_string('perceptual_mode', 'VGG54', 'The type of feature used in perceptual loss')
-Flags.DEFINE_float('reconstruction_scaling', 0.1, 'The scaling factor for the reconstruction loss')
-Flags.DEFINE_float('perceptual_scaling', 1.0, 'The scaling factor for the perceptual loss')
-Flags.DEFINE_float('wrapping_scaling', 1.0, 'The scaling factor for the wrapping loss')
-Flags.DEFINE_float('smoothness_scaling', 50.0, 'The scaling factor for the smoothness loss')
-Flags.DEFINE_float('learning_rate', 0.0001, 'The learning rate for the network')
-Flags.DEFINE_integer('decay_step', 500000, 'The steps needed to decay the learning rate')
-Flags.DEFINE_float('decay_rate', 0.1, 'The decay rate of each decay step')
-Flags.DEFINE_boolean('stair', False, 'Whether perform staircase decay. True => decay in discrete interval.')
-Flags.DEFINE_float('beta', 0.9, 'The beta1 parameter for the Adam optimizer')
 
 FLAGS = Flags.FLAGS
 
@@ -53,7 +43,7 @@ def video_to_slomo(sess, fetch, frame0_ph, frame1_ph):
     frame_count = int(in_video.get(cv2.CAP_PROP_FRAME_COUNT))
 
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out_video = cv2.VideoWriter(FLAGS.output_video_path, fourcc, fps*FLAGS.fps_rate, (frame_width, frame_height))
+    out_video = cv2.VideoWriter(FLAGS.output_video_path, fourcc, fps * FLAGS.fps_rate, (frame_width, frame_height))
 
     frame0 = None
     frame1 = None
@@ -76,7 +66,7 @@ def video_to_slomo(sess, fetch, frame0_ph, frame1_ph):
         results = [(255 * r.pred_frameT).astype(np.uint8) for r in results]
         out_video.write((255 * frame0).astype(np.uint8))
         for i, f in enumerate(results):
-            #cv2.imwrite("/mnt/069A453E9A452B8D/Ram/slomo_data/tmp/"+str(count) + "_"+str(i)+".png", f[0])
+            # cv2.imwrite("/mnt/069A453E9A452B8D/Ram/slomo_data/tmp/"+str(count) + "_"+str(i)+".png", f[0])
             out_video.write(f[0])
         frame0 = frame
     pbar.close()
@@ -95,7 +85,7 @@ def main():
     frame1_ph = tf.placeholder(tf.float32, shape=[1, None, None, 3], name="frame1")
     fetch = [
         SloMo_model_infer(frame0_ph, frame1_ph, FLAGS, reuse=tf.AUTO_REUSE,
-                    timestamp=float(t + 1) / (FLAGS.slomo_rate + 1))
+                          timestamp=float(t + 1) / (FLAGS.slomo_rate + 1))
         for t in range(FLAGS.slomo_rate)]
     var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='SloMo_model')
     weight_initializer = tf.train.Saver(var_list)

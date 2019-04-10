@@ -36,7 +36,7 @@ def reconstruction_loss(Ipred, Iref):
     Iref = tf.image.convert_image_dtype(Iref, dtype=tf.uint8)
 
     Ipred = tf.cast(Ipred, dtype=tf.float32)
-    Iref = tf.cast(Iref, dtype=tf.float32)  # TODO: Check whether required
+    Iref = tf.cast(Iref, dtype=tf.float32)
 
     # tf.reduce_mean(tf.norm(tf.math.subtract(Ipred, Iref), ord=1, axis=[3]))
     return l1_loss(Ipred, Iref)
@@ -80,10 +80,6 @@ def conv2d(batch_input, output_channels, kernel_size=3, stride=1, scope="conv", 
                            data_format='NHWC',
                            weights_initializer=tf.contrib.layers.xavier_initializer(),
                            activation_fn=activation_fn)
-
-
-# def lrelu_keras(input, alpha=0.2):
-#     return keras.layers.LeakyReLU(alpha=alpha)(input)  # TODO: Pure tensorflow, Keras Not Allowed
 
 
 def lrelu(input, alpha=0.2):
@@ -181,8 +177,8 @@ def SloMo_model_infer(frame0, frame1, FLAGS, reuse=False, timestamp=0.5):
             print("Flow Computation Graph Initialized !!!!!! ")
 
         with tf.variable_scope("flow_interpolation"):
-            Fdasht0 = (-1 * (1 - timestamp) * timestamp * F01) + (timestamp * timestamp * F10)
-            Fdasht1 = ((1 - timestamp) * (1 - timestamp) * F01) - (timestamp * (1 - timestamp) * F10)  # TODO :Remove ()
+            Fdasht0 = -1 * (1 - timestamp) * timestamp * F01 + timestamp * timestamp * F10
+            Fdasht1 = (1 - timestamp) * (1 - timestamp) * F01 - timestamp * (1 - timestamp) * F10
 
             flow_interp_input = tf.concat([frame0, frame1,
                                            flow_back_wrap(frame1, Fdasht1),
@@ -193,7 +189,7 @@ def SloMo_model_infer(frame0, frame1, FLAGS, reuse=False, timestamp=0.5):
                                          decoder_extra_input=flow_comp_enc_out,
                                          first_kernel=3,
                                          second_kernel=3)
-            # TODO: check Vto is 4 shaped or 3, use expand dimension
+
             deltaFt0, deltaFt1, Vt0 = flow_interp_output[:, :, :, :2], flow_interp_output[:, :, :, 2:4], \
                                       flow_interp_output[:, :, :, 4:5]
 
@@ -207,7 +203,7 @@ def SloMo_model_infer(frame0, frame1, FLAGS, reuse=False, timestamp=0.5):
 
             normalization_factor = 1 / ((1 - timestamp) * Vt0 + timestamp * Vt1 + FLAGS.epsilon)
             pred_frameT = tf.multiply((1 - timestamp) * Vt0, flow_back_wrap(frame0, Ft0)) + \
-                          tf.multiply(timestamp * Vt1, flow_back_wrap(frame1, Ft1))  # TODO: check flow_back_wrap
+                          tf.multiply(timestamp * Vt1, flow_back_wrap(frame1, Ft1))
             pred_frameT = tf.multiply(normalization_factor, pred_frameT)
             print("Flow Interpolation Graph Initialized !!!!!! ")
 
@@ -239,7 +235,7 @@ def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False, timestamp=0.5):
 
         with tf.variable_scope("flow_interpolation"):
             Fdasht0 = (-1 * (1 - timestamp) * timestamp * F01) + (timestamp * timestamp * F10)
-            Fdasht1 = ((1 - timestamp) * (1 - timestamp) * F01) - (timestamp * (1 - timestamp) * F10)  # TODO :Remove ()
+            Fdasht1 = ((1 - timestamp) * (1 - timestamp) * F01) - (timestamp * (1 - timestamp) * F10)
 
             flow_interp_input = tf.concat([frame0, frame1,
                                            flow_back_wrap(frame1, Fdasht1),
@@ -250,7 +246,7 @@ def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False, timestamp=0.5):
                                          decoder_extra_input=flow_comp_enc_out,
                                          first_kernel=3,
                                          second_kernel=3)
-            # TODO: check Vto is 4 shaped or 3, use expand dimension
+
             deltaFt0, deltaFt1, Vt0 = flow_interp_output[:, :, :, :2], flow_interp_output[:, :, :, 2:4], \
                                       flow_interp_output[:, :, :, 4:5]
 
@@ -264,7 +260,7 @@ def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False, timestamp=0.5):
 
             normalization_factor = 1 / ((1 - timestamp) * Vt0 + timestamp * Vt1 + FLAGS.epsilon)
             pred_frameT = tf.multiply((1 - timestamp) * Vt0, flow_back_wrap(frame0, Ft0)) + \
-                          tf.multiply(timestamp * Vt1, flow_back_wrap(frame1, Ft1))  # TODO: check flow_back_wrap
+                          tf.multiply(timestamp * Vt1, flow_back_wrap(frame1, Ft1))
             pred_frameT = tf.multiply(normalization_factor, pred_frameT)
             print("Flow Interpolation Graph Initialized !!!!!! ")
 
@@ -292,7 +288,6 @@ def SloMo_model(frame0, frame1, frameT, FLAGS, reuse=False, timestamp=0.5):
             grads_and_vars = optimizer.compute_gradients(total_loss, tvars)
             train_op = optimizer.apply_gradients(grads_and_vars)
 
-    # TODO: add more if needed.
     return Network(
         total_loss=total_loss,
         reconstruction_loss=rec_loss,
