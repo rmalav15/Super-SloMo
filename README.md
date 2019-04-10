@@ -8,7 +8,7 @@ This project is a tensorflow Implementation of impressive work
 The network is trained on [adobe240fps](http://www.cs.ubc.ca/labs/imager/tr/2017/DeepVideoDeblurring/DeepVideoDeblurring_Dataset_Original_High_FPS_Videos.zip) dataset
 (30 videos out of 33 are used for training). 
 
-![](./videos/bike.gif) ![](./videos/bike_slomo.gif)
+![](./videos/bike.gif =70x50) ![](./videos/bike_slomo.gif =70x50)
 
 ## Dependecy
 
