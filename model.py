@@ -52,7 +52,6 @@ def perceptual_loss(Ipred, Iref, layers="VGG54"):
     return l2_loss(Ipred_features, Iref_features)
 
 
-# Optical flow range must be [-1, 1]
 def wrapping_loss(frame0, frame1, frameT, F01, F10, Fdasht0, Fdasht1):
     return l1_loss(frame0, flow_back_wrap(frame1, F01)) + \
            l1_loss(frame1, flow_back_wrap(frame0, F10)) + \
