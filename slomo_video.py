@@ -20,6 +20,7 @@ Flags = tf.app.flags
 Flags.DEFINE_string('input_video_path', None, 'Input video')
 Flags.DEFINE_string('output_video_path', None, 'Output slow motion video')
 Flags.DEFINE_integer('slomo_rate', 2, 'Number of frames to insert between frames')
+Flags.DEFINE_integer('fps_rate', 5, 'The fps of output video will be fps_rate * fps of original videos ')
 Flags.DEFINE_string('checkpoint', None, 'Slomo model path')
 
 # model configurations
@@ -52,7 +53,7 @@ def video_to_slomo(sess, fetch, frame0_ph, frame1_ph):
     frame_count = int(in_video.get(cv2.CAP_PROP_FRAME_COUNT))
 
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out_video = cv2.VideoWriter(FLAGS.output_video_path, fourcc, fps*3, (frame_width, frame_height))
+    out_video = cv2.VideoWriter(FLAGS.output_video_path, fourcc, fps*FLAGS.fps_rate, (frame_width, frame_height))
 
     frame0 = None
     frame1 = None
