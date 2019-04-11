@@ -38,8 +38,7 @@ Flags.DEFINE_string('train_video_dir',
                     '/mnt/069A453E9A452B8D/Ram/slomo_data/DeepVideoDeblurring_Dataset_Original_High_FPS_Videos/'
                     'original_high_fps_videos',
                     'Video data folder')
-Flags.DEFINE_string('val_video_dir', "/mnt/069A453E9A452B8D/Ram/slomo_data/tmp/",
-                    'The directory to extract videos temporarily')
+Flags.DEFINE_string('val_video_dir', None, 'The directory to extract videos temporarily')
 Flags.DEFINE_string('tfrecord_train_dir', "/mnt/069A453E9A452B8D/Ram/slomo_data/tfrecords/train",
                     'The directory to extract training tfrecords')
 Flags.DEFINE_string('tfrecord_val_dir', "/mnt/069A453E9A452B8D/Ram/slomo_data/tfrecords/val",
