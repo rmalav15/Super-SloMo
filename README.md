@@ -57,6 +57,8 @@ tensorboard --logdir [summary_dir]
 
 ### Inference
 
+You can download the pre-trained model trained on adobe240fps dataset [here](https://drive.google.com/file/d/10NYFgOyg-bp0a27V1wruMPBf3ga766m0/view?usp=sharing).
+
 To run inference, edit and run slomo_video.sh:
 ```bash
 #!/usr/bin/env bash
