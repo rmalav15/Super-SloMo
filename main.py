@@ -51,7 +51,7 @@ Flags.DEFINE_integer('slim_num_readers', 4, 'The number reader for slim TFreader
 Flags.DEFINE_integer('tfrecord_threads', 5, 'The number of threads for tfrecord extraction.')
 Flags.DEFINE_integer('resize_width', 320, 'The width of the training image')
 Flags.DEFINE_integer('resize_height', 240, 'The width of the training image')
-Flags.DEFINE_integer('train_data_count', 116241, 'The number of samples in training tfrecords')
+Flags.DEFINE_integer('train_data_count', None, 'The number of samples in training tfrecords')
 Flags.DEFINE_integer('val_data_count', None, 'The number of samples in training tfrecords')
 
 # model configurations
