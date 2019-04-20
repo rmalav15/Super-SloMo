@@ -47,8 +47,8 @@ CUDA_VISIBLE_DEVICES=0 python main.py \
 
 For all available options, check main.py.
 
-If run first time, it will first convert videos to tfrecord in training format. Please note that for next time "train_data_count"  
-needs to be provide, so note the dataset sample count printed while training for first time.
+If run for first time, it will first convert videos to tfrecord in training format. Please note that for later times, while  it will not extract tfrecords again but will require "train_data_count" to be set to calculate epoch no, step no, etc.   
+So note the dataset sample count, which will be printed while training for first time. (TODO: Automate this)
 
 To observe the training losses, learning rate, graph and predicted images, use tensorboard:
 ```bash
