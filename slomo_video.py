@@ -1,4 +1,4 @@
-# Note: Not a efficient implementation
+# Note: Not a efficient implementation of inference
 # TODO: Restructure code to separate submodules from slomo
 
 from __future__ import absolute_import
