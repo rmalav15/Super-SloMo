@@ -243,6 +243,7 @@ class DataLoader:
             raise ValueError("only train|val is allowed")
 
     def get_data(self, name):
+        # TODO: with tf.device('/cpu:0'):
         Data = collections.namedtuple('Data', 'frame0, frame1, frameT, video_name, frame_nos, steps_per_epoch')
         keys_to_features = {
             'image/height': tf.FixedLenFeature([1], tf.int64),
