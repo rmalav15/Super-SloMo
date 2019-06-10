@@ -9,6 +9,7 @@ The network is trained on [adobe240fps](http://www.cs.ubc.ca/labs/imager/tr/2017
 (30 videos out of 33 are used for training). 
 
 Please wait for gifs to load. :)
+
 <img src='./videos/bike.gif' width="400"> <img src='./videos/bike_slomo.gif' width="400">
 
 
