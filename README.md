@@ -4,7 +4,7 @@
 **NOTE :** This is work in progress. Some people have pointed out that with current pretrained model, frame duplication is occuring. However this is a end-to-end working code and can be used to train/re-train a new model (with hyperparameter tuning) on your end to achieve your final goal. Please have a look at [model.py](https://github.com/rmalav15/Super-SloMo/blob/master/model.py) for comparing the model with paper version. Thanks.
 
 This project is a tensorflow implementation of the impressive work 
-"Super SloMo: High Quality Estimation of Multiple Intermediate Frames for Video Interpolation". [[Paper]](https://arxiv.org/abs/1712.00080) [[Project]](https://people.cs.umass.edu/~hzjiang/projects/superslomo/)
+"Super SloMo: High Quality Estimation of Multiple Intermediate Frames for Video Interpolation". [[Paper]](https://arxiv.org/abs/1712.00080) [[Project]](https://people.cs.umass.edu/~hzjiang/projects/superslomo/) [[Pretrained Model]](https://drive.google.com/file/d/10NYFgOyg-bp0a27V1wruMPBf3ga766m0/view?usp=sharing)
 
 The network is trained on [adobe240fps](http://www.cs.ubc.ca/labs/imager/tr/2017/DeepVideoDeblurring/DeepVideoDeblurring_Dataset_Original_High_FPS_Videos.zip) dataset
 (30 videos out of 33 are used for training). 
