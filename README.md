@@ -1,7 +1,7 @@
 # Super-SloMo
 
 ## Introduction
-**NOTE :** This is work in progress. Some people have pointed out that with current pretrained model, frame duplication is occuring. However this is a end-to-end working code and can be used to train/re-train a new model (with hyperparameter tuning) on your end to achieve your final goal. Thanks.
+**NOTE :** This is work in progress. Some people have pointed out that with current pretrained model, frame duplication is occuring. However this is a end-to-end working code and can be used to train/re-train a new model (with hyperparameter tuning) on your end to achieve your final goal. please have a look at [model.py](https://github.com/rmalav15/Super-SloMo/blob/master/model.py) for comparing the model with paper version. Thanks.
 
 This project is a tensorflow implementation of the impressive work 
 "Super SloMo: High Quality Estimation of Multiple Intermediate Frames for Video Interpolation". [[Paper]](https://arxiv.org/abs/1712.00080) [[Project]](https://people.cs.umass.edu/~hzjiang/projects/superslomo/)
